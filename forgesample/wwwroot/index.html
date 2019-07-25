@@ -11,8 +11,17 @@
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css">
     <!-- .NET SignalR -->
     <script src="//unpkg.com/@aspnet/signalr@1.1.0/dist/browser/signalr.min.js"></script>
+    <!-- Autodesk Forge Viewer files -->
+    <!--<link rel="stylesheet" href="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/style.min.css" type="text/css">
+    <script src="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/viewer3D.min.js"></script>-->
+    <link rel="stylesheet" href="https://developer.api.autodesk.com/modelderivative/v2/viewers/style.min.css?v=v6.2" type="text/css">
+    <script src="https://developer.api.autodesk.com/modelderivative/v2/viewers/viewer3D.min.js?v=v6.2"></script>
     <!-- Files for this project -->
-    <script src="/js/ForgeDesignAutomation.js"></script>
+    <link href="css/main.css" rel="stylesheet" />
+    <script src="js/ForgeDesignAutomation.js"></script>
+    <script src="js/ForgeViewer.js"></script>
+
+
 </head>
 
 <body style="height: 100%;">
@@ -38,6 +47,7 @@
     <div class="container-fluid" style="margin-top: 70px; ">
         <div class="row">
             <div class="col-sm-4">
+                <center><button class="btn btn-primary" id="getShotgunData">Get Shotgun Task</button></center><br />
                 <div class="form-group">
                     <label for="percent">Enter series of values:</label>
                     <input type="text" class="form-control" id="percent" placeholder="Enter percentages">
@@ -50,6 +60,10 @@
                     <label for="CollapseStack">Collapse Stack?:</label>
                     <input type="checkbox" class="btn-primary" id="CollapseStack" placeholder="Collapse Stack?">
                 </div>
+                <div class="form-group">
+                    <label for="CreateSVFPreview">Create SVF Preview?:</label>
+                    <input type="checkbox" class="btn-primary" id="CreateSVFPreview" placeholder="Create SVF Preview?">
+                </div>
 
                 <div class="form-group">
                     <label for="inputFile">Input file</label>
@@ -60,12 +74,27 @@
                     <select class="form-control" id="activity"> </select>
                 </div>
                 <center><button class="btn btn-primary" id="startWorkitem">Start workitem</button></center><br />
+                <pre id="outputlog" style="height: calc(50vh - 120px); width: 100%; overflow-y: scroll; overflow-x: scroll;"></pre>
             </div>
             <div class="col-sm-8">
-                <pre id="outputlog" style="height: calc(100vh - 120px);; overflow-y: scroll;"></pre>
+                <div class="form-group">
+                    <button class="btn btn-primary" id="viewit">viewer</button>
+                    <label for="solutions">Reduced Solutions:</label>
+                    <select id="solutions" onchange="loadViewerModelReduced();">
+                        <option value="1">none</option>
+                    </select>
+                    <button class="btn btn-primary" id="wireframe">Toggle Wireframe</button><br />
+                </div>
+                <div class="form-group" style="height: 300px;">
+                    <text>Original Model</text>
+                    <div id="forgeViewer1" style="height: 100%;"></div>
+                </div>
+                <br/>
+                <div class="form-group" style="height: 300px;">
+                    <text>Reduced Model</text>
+                    <div id="forgeViewer2" style="height: 100%;"></div>
+                </div>
             </div>
-        </div>
-    </div>
     <!-- Modal Define AppBundle & Activity -->
     <div class="modal fade" id="defineActivityModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
         <div class="modal-dialog" role="document">

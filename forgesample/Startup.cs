@@ -14,16 +14,31 @@ namespace forgeSample
             services.AddSignalR();
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        private void OnAppStopping()
         {
+            forgeSample.Controllers.DesignAutomationController.CleanUpServerFiles();
+        }
+
+        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, IApplicationLifetime applicationLifetime)
+        {
+           
             app.UseSignalR(routes =>
             {
                 routes.MapHub<Controllers.DesignAutomationHub>("/api/signalr/designautomation");
+                routes.MapHub<Controllers.ShotgunHub>("/api/signalr/shotgun");
             });
 
             app.UseFileServer();
+            app.UseHttpsRedirection();
             app.UseMvc();
+            app.UseDefaultFiles();
+            app.UseStaticFiles(new StaticFileOptions()
+            {
+                ServeUnknownFileTypes = true
+            });
+
+            applicationLifetime.ApplicationStopping.Register(() => OnAppStopping());
         }
     }
 }

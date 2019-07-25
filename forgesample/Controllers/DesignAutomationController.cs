@@ -29,8 +29,10 @@ using Newtonsoft.Json.Linq;
 using RestSharp;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Activity = Autodesk.Forge.DesignAutomation.Model.Activity;
 using Alias = Autodesk.Forge.DesignAutomation.Model.Alias;
@@ -45,6 +47,12 @@ namespace forgeSample.Controllers
     [ApiController]
     public class DesignAutomationController : ControllerBase
     {
+        // store the solutions needed.
+        private static JArray numbers;
+        private static bool SVFpreview;
+        private static string localSolutionsFilename = "solutions.zip";
+        private static string localSolutionsFolder = "wwwroot/models/";
+
         // Used to access the application folder (temp location for files & bundles)
         private IHostingEnvironment _env;
         // used to access the SignalR Hub
@@ -57,6 +65,15 @@ namespace forgeSample.Controllers
         public static string Alias { get { return "dev"; } }
         // Design Automation v3 API
         DesignAutomationClient _designAutomation;
+        public static void CleanUpServerFiles()
+        {
+            if (System.IO.File.Exists(localSolutionsFilename))
+                System.IO.File.Delete(localSolutionsFilename);
+            if (System.IO.Directory.Exists(localSolutionsFolder))
+                // warning, if changing locations, make sure this is safe in your environment. 
+                // during debugging, you may accidentally delete files you did not intend to delete
+                System.IO.Directory.Delete(localSolutionsFolder, true);
+        }
 
         // Constructor, where env and hubContext are specified
         public DesignAutomationController(IHostingEnvironment env, IHubContext<DesignAutomationHub> hubContext, DesignAutomationClient api)
@@ -243,6 +260,7 @@ namespace forgeSample.Controllers
             string percentParam = workItemData["percent"].Value<string>();
             string keepNormalsParam = workItemData["KeepNormals"].Value<string>(); 
             string collapseStackParam = workItemData["CollapseStack"].Value<string>();
+            string createSVFPreviewParam = workItemData["CreateSVFPreview"].Value<string>();
             string activityName = string.Format("{0}.{1}", NickName, workItemData["activityName"].Value<string>());
             string browerConnectionId = workItemData["browerConnectionId"].Value<string>();
 
@@ -284,11 +302,13 @@ namespace forgeSample.Controllers
             };
             // 2. input json
             dynamic inputJson = new JObject();
-            JArray numbers = new JArray(percentParam.Split(',').Select(r => Convert.ToString(r)).ToList());
+            numbers = new JArray(percentParam.Split(',').Select(r => Convert.ToString(r)).ToList());
             // Note these dyanmic variables are the names matching in the JSON and used in the plugin to receive data
             inputJson.VertexPercents = numbers;
             inputJson.KeepNormals = keepNormalsParam;
             inputJson.CollapseStack = collapseStackParam;
+            inputJson.CreateSVFPreview = createSVFPreviewParam;
+            SVFpreview = createSVFPreviewParam.Contains("True", StringComparison.CurrentCultureIgnoreCase) ? true : false;
             XrefTreeArgument inputJsonArgument = new XrefTreeArgument()
             {
                 Url = "data:application/json, " + ((JObject)inputJson).ToString(Formatting.None).Replace("\"", "'")
@@ -346,8 +366,32 @@ namespace forgeSample.Controllers
                 ObjectsApi objectsApi = new ObjectsApi();
                 dynamic signedUrl = await objectsApi.CreateSignedResourceAsyncWithHttpInfo(NickName.ToLower() + "_designautomation", outputFileName, new PostBucketsSigned(10), "read");
                 await _hubContext.Clients.Client(id).SendAsync("downloadResult", (string)(signedUrl.Data.signedUrl));
+                //
+                //
+                if (SVFpreview)
+                {
+                    // cleanup previous preview files if they exist...
+                    CleanUpServerFiles();
+                    var local = new WebClient();
+                    local.DownloadFile(signedUrl.Data.signedUrl, localSolutionsFilename);
+                    System.IO.Compression.ZipFile.ExtractToDirectory(localSolutionsFilename, localSolutionsFolder);
+                    numbers.AddFirst("1"); // make sure we also include the orginal SVF 100% (1.0) representation.
+                    foreach (float vertexPercent in numbers)
+                    {
+                        var nvertexPercent = vertexPercent * 100;
+                        string stringVertexPercent = nvertexPercent.ToString("F1");
+                        stringVertexPercent = stringVertexPercent.Replace('.', '_');
+                        string output = "outputFile-" + stringVertexPercent + ".zip";
+
+                        System.IO.Compression.ZipFile.ExtractToDirectory(localSolutionsFolder + output, localSolutionsFolder + stringVertexPercent); 
+                    }
+                }
+
             }
-            catch (Exception e) { }
+            catch (Exception e)
+            {
+                Debug.Print(e.Message);
+            }
 
             // ALWAYS return ok (200)
             return Ok();

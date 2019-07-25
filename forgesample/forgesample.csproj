@@ -12,12 +12,13 @@
       <None Remove="README.md" />
     </ItemGroup>
     <ItemGroup>
-        <Folder Include="wwwroot\" />
         <Folder Include="wwwroot\bundles\" />
+        <Folder Include="wwwroot\models\test2\" />
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Autodesk.Forge" Version="1.5.2" />
         <PackageReference Include="Autodesk.Forge.DesignAutomation" Version="3.0.0-beta2" />
         <PackageReference Include="Microsoft.AspNetCore.App" />
+        <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="2.1.1" />
     </ItemGroup>
 </Project>

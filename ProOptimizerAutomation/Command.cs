@@ -37,6 +37,7 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
         public List<float> VertexPercents { get; set; }
         public bool KeepNormals { get; set; }
         public bool CollapseStack { get; set; }
+        public bool CreateSVFPreview { get; set; }
 
     }
     /// <summary>
@@ -195,7 +196,7 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
         }
 
  
-        static public string UpdateNodes(float vertexPercent, bool keepNormals, bool collapseStack)
+        static public string UpdateNodes(float vertexPercent, bool keepNormals, bool collapseStack, bool createSVFPreview = false)
         {
             IGlobal globalInterface = Autodesk.Max.GlobalInterface.Instance;
             IInterface14 coreInterface = globalInterface.COREInterface14;
@@ -259,7 +260,18 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
                 string msCmdFbxExport = "exportFile \"" + outputFBX + "\" #noPrompt using:FBXEXP";
                 bool fbxOk = globalInterface.ExecuteMAXScriptScript(msCmdFbxExport, false, null, false);
 
-                // If we changed something, put scene back for next iteration
+                if (createSVFPreview == true)
+                {
+                    string pathRoot = full_filename.Replace(filename, "");
+                    string pathSVF = pathRoot + stringVertexPercent;
+                    string outputSVF = pathSVF + "\\outputFile-" + stringVertexPercent + ".svf";
+                    string outputZIP = pathRoot + "outputFile-" + stringVertexPercent + ".zip";
+
+                    string msCmdSvfExport = "exportFile \"" + outputSVF + "\" #noPrompt";
+                    bool svfOk = globalInterface.ExecuteMAXScriptScript(msCmdSvfExport, false, null, false);
+                    ZipFile.CreateFromDirectory(pathSVF, outputZIP);
+                }
+                // put scene back for next iteration
                 globalInterface.TheHold.Cancel();
 
                 if ((status == 0) || (fbxOk == false)) // error saving max or fbx file
@@ -281,6 +293,9 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
     {
         static public int ProOptimizeMesh()
         {
+            IGlobal globalInterface = Autodesk.Max.GlobalInterface.Instance;
+            IInterface14 coreInterface = globalInterface.COREInterface14;
+
             int count = 0;
 
             // Run entire code block with try/catch to help determine errors
@@ -292,14 +307,34 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
                 {
                     VertexPercents = new List<float> { 0.225F, 0.426F, 0.752F, 0.895F },
                     KeepNormals = false,
-                    CollapseStack = false
+                    CollapseStack = false,
+                    CreateSVFPreview = true
                 };*/
 
+                //KDV need to add this to input
+                //inputParams.CreateSVFPreview = true;
+
                 List<string> solution_files = new List <string> { };
+                string outputZIP = null;
+                if (inputParams.CreateSVFPreview == true)
+                {
+                    string full_filename = coreInterface.CurFilePath;
+                    string filename = coreInterface.CurFileName;
+                    string pathRoot = full_filename.Replace(filename, "");
+                    string stringVertexPercent = "100_0"; //orginal without any reduction.
+                    string pathSVF = pathRoot + stringVertexPercent; 
+                    string outputSVF = pathSVF + "\\outputFile-" + stringVertexPercent + ".svf";
+                    outputZIP = pathRoot + "outputFile-" + stringVertexPercent + ".zip";
+
+                    string msCmdSvfExport = "exportFile \"" + outputSVF + "\" #noPrompt";
+                    bool svfOk = globalInterface.ExecuteMAXScriptScript(msCmdSvfExport, false, null, false);
+                    ZipFile.CreateFromDirectory(pathSVF, outputZIP);
+                    solution_files.Add(outputZIP); // add the 100%
+                }
 
                 foreach (float n in inputParams.VertexPercents)
                 {
-                    string status = ParameterChanger.UpdateNodes(n, inputParams.KeepNormals, inputParams.CollapseStack);
+                    string status = ParameterChanger.UpdateNodes(n, inputParams.KeepNormals, inputParams.CollapseStack, inputParams.CreateSVFPreview);
                     if (status != null)
                     {
                         count += 1; // number of solutions successfully created as new scene files.
@@ -308,6 +343,12 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
                         // add FBX files
                         status = status.Replace(".max", ".fbx");
                         solution_files.Add(status);
+                        if (inputParams.CreateSVFPreview == true)
+                        {
+                            // add preview SVF zip files
+                            status = status.Replace(".fbx", ".zip");
+                            solution_files.Add(status);
+                        }
                     }
                 }
 
