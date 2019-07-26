@@ -265,8 +265,20 @@ namespace forgeSample.Controllers
             string browerConnectionId = workItemData["browerConnectionId"].Value<string>();
 
             // save the file on the server
-            var fileSavePath = Path.Combine(_env.ContentRootPath, Path.GetFileName(input.inputFile.FileName));
-            using (var stream = new FileStream(fileSavePath, FileMode.Create)) await input.inputFile.CopyToAsync(stream);
+            string fileSavePath = null;
+            string input_fname = null;
+            bool bUsingDefault = false;
+            if (input.inputFile != null)
+            {
+                fileSavePath = Path.Combine(_env.ContentRootPath, Path.GetFileName(input.inputFile.FileName));
+                using (var stream = new FileStream(fileSavePath, FileMode.Create)) await input.inputFile.CopyToAsync(stream);
+            }
+            else
+            {
+                bUsingDefault = true;
+                input_fname = "default.max";
+                fileSavePath = Path.Combine(_env.ContentRootPath, Path.GetFileName(input_fname));
+            }
 
             // OAuth token
             dynamic oauth = await OAuthController.GetInternalAsync();
@@ -283,12 +295,13 @@ namespace forgeSample.Controllers
             }
             catch { }; // in case bucket already exists
                        // 2. upload inputFile
-            string inputFileNameOSS = string.Format("{0}_input_{1}", DateTime.Now.ToString("yyyyMMddhhmmss"), Path.GetFileName(input.inputFile.FileName)); // avoid overriding
+            string inputFileNameOSS = string.Format("{0}_input_{1}", DateTime.Now.ToString("yyyyMMddhhmmss"), Path.GetFileName(input_fname)); //
             ObjectsApi objects = new ObjectsApi();
             objects.Configuration.AccessToken = oauth.access_token;
             using (StreamReader streamReader = new StreamReader(fileSavePath))
                 await objects.UploadObjectAsync(bucketKey, inputFileNameOSS, (int)streamReader.BaseStream.Length, streamReader.BaseStream, "application/octet-stream");
-            System.IO.File.Delete(fileSavePath);// delete server copy
+            if (!bUsingDefault)
+                System.IO.File.Delete(fileSavePath);// delete server copy if it's user supplied
 
             // prepare workitem arguments
             // 1. input file

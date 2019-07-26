@@ -47,27 +47,27 @@
     <div class="container-fluid" style="margin-top: 70px; ">
         <div class="row">
             <div class="col-sm-4">
-                <center><button class="btn btn-primary" id="getShotgunData">Get Shotgun Task</button></center><br />
+                <!--<center><button class="btn btn-primary" id="getShotgunData">Get Shotgun Task</button></center><br />-->
                 <div class="form-group">
                     <label for="percent">Enter series of values:</label>
-                    <input type="text" class="form-control" id="percent" placeholder="Enter percentages">
+                    <input type="text" class="form-control" id="percent" placeholder="Enter percentages" value="0.25,0.35,0.65">
                 </div>
                 <div class="form-group">
                     <label for="KeepNormals">Keep Normals?:</label>
-                    <input type="checkbox" class="btn-primary" id="KeepNormals" placeholder="Keep Normals?">
+                    <input type="checkbox" class="btn-primary" id="KeepNormals" placeholder="Keep Normals?" checked>
                 </div>
                 <div class="form-group">
                     <label for="CollapseStack">Collapse Stack?:</label>
-                    <input type="checkbox" class="btn-primary" id="CollapseStack" placeholder="Collapse Stack?">
+                    <input type="checkbox" class="btn-primary" id="CollapseStack" placeholder="Collapse Stack?" checked>
                 </div>
                 <div class="form-group">
                     <label for="CreateSVFPreview">Create SVF Preview?:</label>
-                    <input type="checkbox" class="btn-primary" id="CreateSVFPreview" placeholder="Create SVF Preview?">
+                    <input type="checkbox" class="btn-primary" id="CreateSVFPreview" placeholder="Create SVF Preview?" checked>
                 </div>
 
                 <div class="form-group">
-                    <label for="inputFile">Input file</label>
-                    <input type="file" class="form-control-file" id="inputFile">
+                    <label for="inputFile">Select input 3ds Max file <br />(if not selected a default scene is used) </label>
+                    <input type="file" class="form-control-file" id="inputFile" accept=".max">
                 </div>
                 <div class="form-group">
                     <label for="activity">Existing activities</label>
