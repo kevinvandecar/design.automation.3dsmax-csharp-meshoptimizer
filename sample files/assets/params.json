@@ -1,0 +1,6 @@
+{
+  'VertexPercents' : ['0.254', '0.42', '0.825'],
+  'KeepNormals' : 'true',
+  'CollapseStack' : 'true',
+  'CreateSVFPreview' : 'true'
+}
