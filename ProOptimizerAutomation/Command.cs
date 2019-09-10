@@ -223,20 +223,30 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
                         if (objOriginal.CanConvertToType(globalInterface.TriObjectClassID) == 1)
                         {
                             objOriginal = objOriginal.ConvertToType(coreInterface.Time, globalInterface.TriObjectClassID);
-                            ITriObject tri = objOriginal as ITriObject;
-                            int val = tri.Mesh.NumVerts;
-                            AddOsmProoptimizer(node, vertexPercent, keepNormals);
-                            // get new mesh state
-                            os = node.ObjectRef.Eval(coreInterface.Time);
-                            tri = os.Obj as ITriObject;
-                            // ** after modifier operation we can see if success by checking if the mesh size is different than before
-                            if (val != tri.Mesh.NumVerts)
-                            {
-                                if (collapseStack)
-                                    coreInterface.CollapseNode(node, true);
-                                optimizedNodes.Add(node);
-                            }
                         }
+                        else
+                        {
+                            RuntimeExecute.LogTrace("\nNode {0} Object Not Converted Error: {1}", node.NodeName, objOriginal.ObjectName);
+                            continue;
+                        }
+                    }
+                    ITriObject tri = objOriginal as ITriObject;
+                    if (tri == null)
+                    {
+                        RuntimeExecute.LogTrace("\nNode {0} Object Not Converted Error: {1}", node.NodeName, objOriginal.ObjectName);
+                        continue;
+                    }
+                    int val = tri.Mesh.NumVerts;
+                    AddOsmProoptimizer(node, vertexPercent, keepNormals);
+                    // get new mesh state
+                    os = node.ObjectRef.Eval(coreInterface.Time);
+                    tri = os.Obj as ITriObject;
+                    // ** after modifier operation we can see if success by checking if the mesh size is different than before
+                    if (val != tri.Mesh.NumVerts)
+                    {
+                        if (collapseStack)
+                            coreInterface.CollapseNode(node, true);
+                        optimizedNodes.Add(node);
                     }
                 }
             }
@@ -375,7 +385,7 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
         /// <summary>
         /// Information sent to this LogTrace will appear on the Design Automation output
         /// </summary>
-        private static void LogTrace(string format, params object[] args)
+        public static void LogTrace(string format, params object[] args)
         {
             IGlobal globalInterface = Autodesk.Max.GlobalInterface.Instance;
             IInterface14 coreInterface = globalInterface.COREInterface14;
