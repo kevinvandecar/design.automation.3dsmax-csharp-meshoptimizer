@@ -114,12 +114,15 @@ function createActivity(cb) {
 }
 
 function startWorkitem() {
-    
+    clearPercentsDropdown();
+    resetViewers();
+
     var inputFileField = document.getElementById('inputFile');
     // We are using a "default.max" scene. So if nothing is input, we grab it locally (on local server)
     //if (inputFileField.files.length === 0) { alert('Please select an input file'); return; }
     if ($('#activity').val() === null) { alert('Please select an activity'); return };
     var file = inputFileField.files[0];
+    writeLog('Starting work item with input file: ' + file.name);
     var checkboxKeepNormals = document.getElementById('KeepNormals');
     var checkboxCollapseStack = document.getElementById('CollapseStack');
     var checkboxCreateSVFPreview = document.getElementById('CreateSVFPreview');
@@ -183,7 +186,6 @@ function startConnection(onReady) {
 var sg_connection;
 var sg_connectionId;
 
-
 function startShotgunConnection(onReady) {
     if (sg_connection && sg_connection.connectionState) {
         if (onReady)
@@ -238,9 +240,11 @@ function clearPercentsDropdown() {
     files = null;
     var select = document.getElementById('solutions');
     var length = select.options.length;
-    for (i = 0; i < length; i++) {
-        select.options[i] = null;
+    for (i = length-1; i >= 0; i--) {
+        select.remove(i);
     }
+    select.disabled = true;
+    //writeLog('options length ' + select.options.length);
 }
 
 function getPercentFilenames() {
@@ -264,6 +268,7 @@ function getPercentFilenames() {
 var files;
 function populatePercentsDropdown() {
     clearPercentsDropdown();
+
     files = getPercentFilenames();
     var select = document.getElementById('solutions');
     var percents = document.getElementById('percent').value;
@@ -273,6 +278,7 @@ function populatePercentsDropdown() {
         select.add(option);
         //console.log(myString);
     });;
+    select.disabled = false;
 }
 
 // global viewers handling
@@ -290,7 +296,6 @@ function createViewer(modelName, viewer_id) {
 
     //var viewer = new Autodesk.Viewing.Private.GuiViewer3D(viewerElement, {}); 
     var viewer = new Autodesk.Viewing.Viewer3D(viewerElement, {});
-
 
     Autodesk.Viewing.Initializer(options, function () {
         viewer.initialize();
@@ -329,12 +334,13 @@ function initViewerOptions(viewer) {
 
 function setupViewerOptions(viewer) {
     viewer.setEnvMapBackground(false);
+    // a shade matching 3ds Max logo color...
     viewer.setBackgroundColor(14, 167, 167, 255, 255, 255);
     viewer.createViewCube();
     viewer.displayViewCube(true);
 }
 
-// helper function to allow the extension to resove before using it.
+// helper function to allow the extension to resolve before using it.
 const sleep = (milliseconds) => {
     return new Promise(resolve => setTimeout(resolve, milliseconds))
 }
@@ -377,6 +383,15 @@ function updateViewerWireframe(viewer) {
         ext.deactivate();
     }
    setupViewerOptions(viewer);
+}
+
+function resetViewers() {
+    if (viewer1 != null)
+        viewer1.uninitialize();
+    if (viewer2 != null)
+        viewer2.uninitialize();
+    viewer1 = null;
+    viewer2 = null;
 }
 
 function viewit() {
