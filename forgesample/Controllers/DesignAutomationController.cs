@@ -277,9 +277,9 @@ namespace forgeSample.Controllers
             {
                 bUsingDefault = true;
                 input_fname = "default.max";
-                fileSavePath = Path.Combine(_env.ContentRootPath, Path.GetFileName(input_fname));
+                fileSavePath = Path.Combine(_env.WebRootPath, Path.GetFileName(input_fname));
             }
-
+            
             // OAuth token
             dynamic oauth = await OAuthController.GetInternalAsync();
 

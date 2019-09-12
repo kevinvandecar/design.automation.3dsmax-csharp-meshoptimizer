@@ -118,11 +118,16 @@ function startWorkitem() {
     resetViewers();
 
     var inputFileField = document.getElementById('inputFile');
-    // We are using a "default.max" scene. So if nothing is input, we grab it locally (on local server)
+    // We can use a "default.max" scene. So if nothing is input, we grab it locally (on local server)
     //if (inputFileField.files.length === 0) { alert('Please select an input file'); return; }
     if ($('#activity').val() === null) { alert('Please select an activity'); return };
+
     var file = inputFileField.files[0];
-    writeLog('Starting work item with input file: ' + file.name);
+    if (file != null)
+        writeLog('Starting work item with input file: ' + file.name);
+    else 
+        writeLog('Starting work item with input file: default scene');
+
     var checkboxKeepNormals = document.getElementById('KeepNormals');
     var checkboxCollapseStack = document.getElementById('CollapseStack');
     var checkboxCreateSVFPreview = document.getElementById('CreateSVFPreview');
@@ -386,12 +391,19 @@ function updateViewerWireframe(viewer) {
 }
 
 function resetViewers() {
-    if (viewer1 != null)
+    if (viewer1 != null) {
+        var ext1 = viewer1.getExtension("Autodesk.Viewing.Wireframes");
+        ext1.deactivate();
         viewer1.uninitialize();
-    if (viewer2 != null)
+        viewer1 = null;
+    }
+    if (viewer2 != null) {
+        var ext2 = viewer2.getExtension("Autodesk.Viewing.Wireframes");
+        ext2.deactivate();
         viewer2.uninitialize();
-    viewer1 = null;
-    viewer2 = null;
+        viewer2 = null;
+    }
+    toggleWireframe = false;
 }
 
 function viewit() {
