@@ -82,88 +82,45 @@ namespace forgeSample.Controllers
             _env = env;
             _hubContext = hubContext;
         }
-
         /// <summary>
-        /// Get all Activities defined for this account
-        /// </summary>
-        [HttpGet]
-        [Route("api/forge/designautomation/activities")]
-        public async Task<List<string>> GetDefinedActivities()
-        {
-            // filter list of 
-            Page<string> activities = await _designAutomation.GetActivitiesAsync();
-            List<string> definedActivities = new List<string>();
-            foreach (string activity in activities.Data)
-                if (activity.StartsWith(NickName) && activity.IndexOf("$LATEST") == -1)
-                    definedActivities.Add(activity.Replace(NickName + ".", String.Empty));
-
-            return definedActivities;
-        }
-
-        /// <summary>
-        /// Define a new activity
-        /// </summary>
-        [HttpPost]
-        [Route("api/forge/designautomation/activities")]
-        public async Task<IActionResult> CreateActivity([FromBody]JObject activitySpecs)
-        {
-            // basic input validation
-            string zipFileName = activitySpecs["zipFileName"].Value<string>();
-            string engineName = activitySpecs["engine"].Value<string>();
-
-            // standard name for this sample
-            string appBundleName = zipFileName + "AppBundle";
-            string activityName = zipFileName + "Activity";
-
-            // 
-            Page<string> activities = await _designAutomation.GetActivitiesAsync();
-            string qualifiedActivityId = string.Format("{0}.{1}+{2}", NickName, activityName, Alias);
-            if (!activities.Data.Contains(qualifiedActivityId))
-            {
-                // define the activity
-                dynamic engineAttributes = EngineAttributes(engineName);
-                string commandLine = string.Format(engineAttributes.commandLine, appBundleName);
-                Activity activitySpec = new Activity()
-                {
-                    Id = activityName,
-                    Appbundles = new List<string>() { string.Format("{0}.{1}+{2}", NickName, appBundleName, Alias) },
-                    CommandLine = new List<string>() { commandLine },
-                    Engine = engineName,
-                    Parameters = new Dictionary<string, Parameter>()
-                    {
-                        { "inputFile", new Parameter() { Description = "input file", LocalName = "$(inputFile)", Ondemand = false, Required = true, Verb = Verb.Get, Zip = false } },
-                        { "inputJson", new Parameter() { Description = "input json", LocalName = "params.json", Ondemand = false, Required = false, Verb = Verb.Get, Zip = false } },
-                        { "outputFile", new Parameter() { Description = "output file", LocalName = "output.zip" /*+ engineAttributes.extension*/, Ondemand = false, Required = true, Verb = Verb.Put, Zip = false } }
-                    },
-                    Settings = new Dictionary<string, ISetting>()
-                    {
-                        { "script", new StringSetting(){ Value = engineAttributes.script } }
-                    }
-                };
-                Activity newActivity = await _designAutomation.CreateActivityAsync(activitySpec);
-
-                // specify the alias for this Activity
-                Alias aliasSpec = new Alias() { Id = Alias, Version = 1 };
-                Alias newAlias = await _designAutomation.CreateActivityAliasAsync(activityName, aliasSpec);
-
-                return Ok(new { Activity = qualifiedActivityId });
-            }
-
-            // as this activity points to a AppBundle "dev" alias (which points to the last version of the bundle),
-            // there is no need to update it (for this sample), but this may be extended for different contexts
-            return Ok(new { Activity = "Activity already defined" });
-        }
-
-        /// <summary>
-        /// Helps identify the engine
+        /// Helper to identify the engine
         /// </summary>
         private dynamic EngineAttributes(string engine)
         {
+            // we are only concerned about 3ds Max in this demo.
             if (engine.Contains("3dsMax")) return new { commandLine = @"$(engine.path)\\3dsmaxbatch.exe -sceneFile $(args[inputFile].path) $(settings[script].path)", extension = "max", script = "da = dotNetClass(\"Autodesk.Forge.Sample.DesignAutomation.Max.RuntimeExecute\")\nda.ProOptimizeMesh()\n" };
             //if (engine.Contains("AutoCAD")) return new { commandLine = "$(engine.path)\\accoreconsole.exe /i $(args[inputFile].path) /al $(appbundles[{0}].path) /s $(settings[script].path)", extension = "dwg", script = "UpdateParam\n" };
             //if (engine.Contains("Inventor")) return new { commandLine = "$(engine.path)\\InventorCoreConsole.exe /i $(args[inputFile].path) /al $(appbundles[{0}].path)", extension = "ipt", script = string.Empty };
             //if (engine.Contains("Revit")) return new { commandLine = "$(engine.path)\\revitcoreconsole.exe /i $(args[inputFile].path) /al $(appbundles[{0}].path)", extension = "rvt", script = string.Empty };
             throw new Exception("Invalid engine");
+        }
+
+        /// <summary>
+        /// Return a list of available engines
+        /// </summary>
+        [HttpGet]
+        [Route("api/forge/designautomation/engines")]
+        public async Task<List<string>> GetAvailableEngines()
+        {
+            dynamic oauth = await OAuthController.GetInternalAsync();
+
+            // define Engines API            
+            Page<string> engines = await _designAutomation.GetEnginesAsync();
+            engines.Data.Sort();
+
+            return engines.Data; // return list of engines
+        }
+
+        /// <summary>
+        /// Names of app bundles on this project
+        /// </summary>
+        [HttpGet]
+        [Route("api/appbundles")]
+        public string[] GetLocalBundles()
+        {
+            // this folder is placed under the public folder, which may expose the bundles
+            // but it was defined this way so it be published on most hosts easily
+            return Directory.GetFiles(LocalBundlesFolder, "*.zip").Select(Path.GetFileNameWithoutExtension).ToArray();
         }
 
         /// <summary>
@@ -239,6 +196,78 @@ namespace forgeSample.Controllers
             return Ok(new { AppBundle = qualifiedAppBundleId, Version = newAppVersion.Version });
         }
 
+        /// <summary>
+        /// Get all Activities defined for this account
+        /// </summary>
+        [HttpGet]
+        [Route("api/forge/designautomation/activities")]
+        public async Task<List<string>> GetDefinedActivities()
+        {
+            // filter list of 
+            Page<string> activities = await _designAutomation.GetActivitiesAsync();
+            List<string> definedActivities = new List<string>();
+            foreach (string activity in activities.Data)
+                if (activity.StartsWith(NickName) && activity.IndexOf("$LATEST") == -1)
+                    definedActivities.Add(activity.Replace(NickName + ".", String.Empty));
+
+            return definedActivities;
+        }
+
+        /// <summary>
+        /// Define a new activity
+        /// </summary>
+        [HttpPost]
+        [Route("api/forge/designautomation/activities")]
+        public async Task<IActionResult> CreateActivity([FromBody]JObject activitySpecs)
+        {
+            // basic input validation
+            string zipFileName = activitySpecs["zipFileName"].Value<string>();
+            string engineName = activitySpecs["engine"].Value<string>();
+
+            // standard name for this sample
+            string appBundleName = zipFileName + "AppBundle";
+            string activityName = zipFileName + "Activity";
+
+            // 
+            Page<string> activities = await _designAutomation.GetActivitiesAsync();
+            string qualifiedActivityId = string.Format("{0}.{1}+{2}", NickName, activityName, Alias);
+            if (!activities.Data.Contains(qualifiedActivityId))
+            {
+                // define the activity
+                dynamic engineAttributes = EngineAttributes(engineName);
+                string commandLine = string.Format(engineAttributes.commandLine, appBundleName);
+                Activity activitySpec = new Activity()
+                {
+                    Id = activityName,
+                    Appbundles = new List<string>() { string.Format("{0}.{1}+{2}", NickName, appBundleName, Alias) },
+                    CommandLine = new List<string>() { commandLine },
+                    Engine = engineName,
+                    Parameters = new Dictionary<string, Parameter>()
+                    {
+                        { "inputFile", new Parameter() { Description = "input file", LocalName = "$(inputFile)", Ondemand = false, Required = true, Verb = Verb.Get, Zip = false } },
+                        { "inputJson", new Parameter() { Description = "input json", LocalName = "params.json", Ondemand = false, Required = false, Verb = Verb.Get, Zip = false } },
+                        { "outputFile", new Parameter() { Description = "output file", LocalName = "output.zip" /*+ engineAttributes.extension*/, Ondemand = false, Required = true, Verb = Verb.Put, Zip = false } }
+                    },
+                    Settings = new Dictionary<string, ISetting>()
+                    {
+                        { "script", new StringSetting(){ Value = engineAttributes.script } }
+                    }
+                };
+                Activity newActivity = await _designAutomation.CreateActivityAsync(activitySpec);
+
+                // specify the alias for this Activity
+                Alias aliasSpec = new Alias() { Id = Alias, Version = 1 };
+                Alias newAlias = await _designAutomation.CreateActivityAliasAsync(activityName, aliasSpec);
+
+                return Ok(new { Activity = qualifiedActivityId });
+            }
+
+            // as this activity points to a AppBundle "dev" alias (which points to the last version of the bundle),
+            // there is no need to update it (for this sample), but this may be extended for different contexts
+            return Ok(new { Activity = "Activity already defined" });
+        }
+
+ 
         /// <summary>
         /// Input for StartWorkitem
         /// </summary>
@@ -411,22 +440,6 @@ namespace forgeSample.Controllers
         }
 
         /// <summary>
-        /// Return a list of available engines
-        /// </summary>
-        [HttpGet]
-        [Route("api/forge/designautomation/engines")]
-        public async Task<List<string>> GetAvailableEngines()
-        {
-            dynamic oauth = await OAuthController.GetInternalAsync();
-
-            // define Engines API            
-            Page<string> engines = await _designAutomation.GetEnginesAsync();
-            engines.Data.Sort();
-
-            return engines.Data; // return list of engines
-        }
-
-        /// <summary>
         /// Clear the accounts (for debugging purposes)
         /// </summary>
         [HttpDelete]
@@ -438,17 +451,7 @@ namespace forgeSample.Controllers
             return Ok();
         }
 
-        /// <summary>
-        /// Names of app bundles on this project
-        /// </summary>
-        [HttpGet]
-        [Route("api/appbundles")]
-        public string[] GetLocalBundles()
-        {
-            // this folder is placed under the public folder, which may expose the bundles
-            // but it was defined this way so it be published on most hosts easily
-            return Directory.GetFiles(LocalBundlesFolder, "*.zip").Select(Path.GetFileNameWithoutExtension).ToArray();
-        }
+
     }
 
     /// <summary>
