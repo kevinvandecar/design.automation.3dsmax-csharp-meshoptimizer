@@ -50,7 +50,7 @@ namespace forgeSample.Controllers
         // store the solutions needed.
         private static JArray numbers;
         private static bool SVFpreview;
-        private static string localSolutionsFilename = "solutions.zip";
+        private static string localSolutionsFilenameBase = "solutions.zip";
         private static string localSolutionsFolderRoot = "wwwroot/models/";
         private static string currentJobFolder;
         private static string unique_jobid;
@@ -69,8 +69,8 @@ namespace forgeSample.Controllers
         DesignAutomationClient _designAutomation;
         public static void CleanUpServerFiles()
         {
-            if (System.IO.File.Exists(localSolutionsFilename))
-                System.IO.File.Delete(localSolutionsFilename);
+            /*if (System.IO.File.Exists(localSolutionsFilenameBase))
+                System.IO.File.Delete(localSolutionsFilenameBase);*/
             if (System.IO.Directory.Exists(localSolutionsFolderRoot))
                 // warning, if changing locations, make sure this is safe in your environment. 
                 // during debugging, you may accidentally delete files you did not intend to delete
@@ -417,8 +417,8 @@ namespace forgeSample.Controllers
                 {
                     currentJobFolder = localSolutionsFolderRoot + unique_jobid + '/';
                     var local = new WebClient();
-                    local.DownloadFile(signedUrl.Data.signedUrl, localSolutionsFilename);
-                    System.IO.Compression.ZipFile.ExtractToDirectory(localSolutionsFilename, currentJobFolder);
+                    local.DownloadFile(signedUrl.Data.signedUrl, unique_jobid + localSolutionsFilenameBase);
+                    System.IO.Compression.ZipFile.ExtractToDirectory(unique_jobid + localSolutionsFilenameBase, currentJobFolder);
                     numbers.AddFirst("1"); // make sure we also include the orginal SVF 100% (1.0) representation.
                     foreach (float vertexPercent in numbers)
                     {
