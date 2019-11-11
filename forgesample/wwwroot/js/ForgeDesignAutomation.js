@@ -131,9 +131,11 @@ function startWorkitem() {
     var checkboxKeepNormals = document.getElementById('KeepNormals');
     var checkboxCollapseStack = document.getElementById('CollapseStack');
     var checkboxCreateSVFPreview = document.getElementById('CreateSVFPreview');
+    var unique_jobid = Date.now();
     startConnection(function () {
         var formData = new FormData();
         formData.append('inputFile', file);
+        formData.append('unique_jobid', unique_jobid);
         formData.append('data', JSON.stringify({
             percent: $('#percent').val(),
             KeepNormals: checkboxKeepNormals.checked,
@@ -261,7 +263,7 @@ function getPercentFilenames() {
     var percentsValues = percents.split(/\s*,\s*/).forEach(function (myString) {
         var num = (parseFloat(myString) * 100).toFixed(1);
         var num2 = num.toString().replace(".", "_");
-        var filename = "models/" + num2 + "/outputFile-" + num2 + ".svf";
+        var filename = "models/" + connectionId + "/" + num2 + "/outputFile-" + num2 + ".svf";
         files.push(filename);
         //console.log(myString);
     });;
@@ -279,7 +281,8 @@ function populatePercentsDropdown() {
     var percents = document.getElementById('percent').value;
     var percentsValues = files.forEach(function (myString) {
         var option = document.createElement("option");
-        option.text = myString;
+        option.text = myString.replace(/^.*[\\\/]/, '');
+        //option.text = myString;
         select.add(option);
         //console.log(myString);
     });;
@@ -351,7 +354,8 @@ const sleep = (milliseconds) => {
 }
 
 function loadViewerModelReduced() {
-    var viewFile2 = document.getElementById("solutions").value;
+    var indexViewFile2 = document.getElementById("solutions").selectedIndex;
+    var viewFile2 = files[indexViewFile2];
 
     if (viewer2 != null) {
         var stateFilter = {
@@ -414,7 +418,7 @@ function viewit() {
     //var viewFile2 = "https://vandecar.s3.amazonaws.com/assets/svf/horse/50/50.svf";
 
     // should always have a 100% result
-    var viewFile1 = "models/100_0/outputFile-100_0.svf";
+    var viewFile1 = "models/" + connectionId + "/100_0/outputFile-100_0.svf";
     //var viewFile2 = document.getElementById("solutions").value;
     var viewFile2 = files[0]; // start with lowest reduction...
     

@@ -51,7 +51,9 @@ namespace forgeSample.Controllers
         private static JArray numbers;
         private static bool SVFpreview;
         private static string localSolutionsFilename = "solutions.zip";
-        private static string localSolutionsFolder = "wwwroot/models/";
+        private static string localSolutionsFolderRoot = "wwwroot/models/";
+        private static string currentJobFolder;
+        private static string unique_jobid;
 
         // Used to access the application folder (temp location for files & bundles)
         private IHostingEnvironment _env;
@@ -69,10 +71,10 @@ namespace forgeSample.Controllers
         {
             if (System.IO.File.Exists(localSolutionsFilename))
                 System.IO.File.Delete(localSolutionsFilename);
-            if (System.IO.Directory.Exists(localSolutionsFolder))
+            if (System.IO.Directory.Exists(localSolutionsFolderRoot))
                 // warning, if changing locations, make sure this is safe in your environment. 
                 // during debugging, you may accidentally delete files you did not intend to delete
-                System.IO.Directory.Delete(localSolutionsFolder, true);
+                System.IO.Directory.Delete(localSolutionsFolderRoot, true);
         }
 
         // Constructor, where env and hubContext are specified
@@ -285,13 +287,14 @@ namespace forgeSample.Controllers
         public async Task<IActionResult> StartWorkitem([FromForm]StartWorkitemInput input)
         {
             // basic input validation
-            JObject workItemData = JObject.Parse(input.data);
+            JObject workItemData = JObject.Parse(input.data);            
             string percentParam = workItemData["percent"].Value<string>();
             string keepNormalsParam = workItemData["KeepNormals"].Value<string>(); 
             string collapseStackParam = workItemData["CollapseStack"].Value<string>();
             string createSVFPreviewParam = workItemData["CreateSVFPreview"].Value<string>();
             string activityName = string.Format("{0}.{1}", NickName, workItemData["activityName"].Value<string>());
             string browerConnectionId = workItemData["browerConnectionId"].Value<string>();
+            unique_jobid = browerConnectionId;
 
             // save the file on the server
             string fileSavePath = null;
@@ -412,11 +415,10 @@ namespace forgeSample.Controllers
                 //
                 if (SVFpreview)
                 {
-                    // cleanup previous preview files if they exist...
-                    CleanUpServerFiles();
+                    currentJobFolder = localSolutionsFolderRoot + unique_jobid + '/';
                     var local = new WebClient();
                     local.DownloadFile(signedUrl.Data.signedUrl, localSolutionsFilename);
-                    System.IO.Compression.ZipFile.ExtractToDirectory(localSolutionsFilename, localSolutionsFolder);
+                    System.IO.Compression.ZipFile.ExtractToDirectory(localSolutionsFilename, currentJobFolder);
                     numbers.AddFirst("1"); // make sure we also include the orginal SVF 100% (1.0) representation.
                     foreach (float vertexPercent in numbers)
                     {
@@ -425,7 +427,7 @@ namespace forgeSample.Controllers
                         stringVertexPercent = stringVertexPercent.Replace('.', '_');
                         string output = "outputFile-" + stringVertexPercent + ".zip";
 
-                        System.IO.Compression.ZipFile.ExtractToDirectory(localSolutionsFolder + output, localSolutionsFolder + stringVertexPercent); 
+                        System.IO.Compression.ZipFile.ExtractToDirectory(currentJobFolder + output, currentJobFolder + stringVertexPercent); 
                     }
                 }
 
