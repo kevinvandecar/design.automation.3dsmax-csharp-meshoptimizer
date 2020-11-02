@@ -98,6 +98,7 @@ namespace forgeSample.Controllers
         }
 
         /// <summary>
+        /// PRESENTATION
         /// Return a list of available engines
         /// </summary>
         [HttpGet]
@@ -126,6 +127,7 @@ namespace forgeSample.Controllers
         }
 
         /// <summary>
+        /// PRESENTATION
         /// Define a new appbundle
         /// </summary>
         [HttpPost]
@@ -216,6 +218,7 @@ namespace forgeSample.Controllers
         }
 
         /// <summary>
+        /// PRESENTATION
         /// Define a new activity
         /// </summary>
         [HttpPost]
@@ -280,6 +283,7 @@ namespace forgeSample.Controllers
         }
 
         /// <summary>
+        /// PRESENTATION
         /// Start a new workitem
         /// </summary>
         [HttpPost]
@@ -389,6 +393,7 @@ namespace forgeSample.Controllers
         }
 
         /// <summary>
+        /// PRESENTATION
         /// Callback from Design Automation Workitem (onProgress or onComplete)
         /// </summary>
         [HttpPost]
