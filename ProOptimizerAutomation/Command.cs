@@ -36,6 +36,7 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
     {
         public List<float> VertexPercents { get; set; }
         public bool KeepNormals { get; set; }
+        public bool KeepUV { get; set; }
         public bool CollapseStack { get; set; }
         public bool CreateSVFPreview { get; set; }
 
@@ -144,7 +145,7 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
         /// <param name="nodeHandle"> Input the node handle to add the modifier to. </param>
         /// <param name="shellAmount"> Input the amount of shell thickness as float. </param>
         /// <returns> Returns 1 if successful or -1 if not. </returns>
-        static public int AddOsmProoptimizer(IINode node, float VertexPercent, bool KeepNormals)
+        static public int AddOsmProoptimizer(IINode node, float VertexPercent, bool KeepNormals, bool KeepUV)
         {
             try
             {
@@ -166,8 +167,9 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
                     // Now we can set the parameters on the modifier, and at end "calculate" the results.
                     IIParamBlock2 pb = mod.GetParamBlock(0);
                     pb.SetValue((int)ProOptimizerPBValues.optimizer_main_ratio, t, VertexPercent, 0);
-                    pb.SetValue((int)ProOptimizerPBValues.optimizer_options_keep_uv, t, 1, 0);
-                    pb.SetValue((int)ProOptimizerPBValues.optimizer_options_keep_normals, t, 0, 0);
+                    pb.SetValue((int)ProOptimizerPBValues.optimizer_options_keep_materials, t, (KeepUV ? 1 : 0), 0);
+                    pb.SetValue((int)ProOptimizerPBValues.optimizer_options_keep_uv, t, (KeepUV ? 1 : 0), 0);
+                    pb.SetValue((int)ProOptimizerPBValues.optimizer_options_keep_normals, t, (KeepNormals ? 1 : 0), 0);
                     // There is no true way to know if this was valid/invalid for the mesh, so we check the outer level routine on triobject for changes. **
                     pb.SetValue((int)ProOptimizerPBValues.optimizer_main_calculate, t, 1, 0); 
                     ip.ClearNodeSelection(false);
@@ -196,7 +198,7 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
         }
 
  
-        static public string UpdateNodes(float vertexPercent, bool keepNormals, bool collapseStack, bool createSVFPreview = false)
+        static public string UpdateNodes(float vertexPercent, bool keepNormals, bool keepUV, bool collapseStack, bool createSVFPreview = false)
         {
             IGlobal globalInterface = Autodesk.Max.GlobalInterface.Instance;
             IInterface14 coreInterface = globalInterface.COREInterface14;
@@ -226,26 +228,30 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
                         }
                         else
                         {
-                            RuntimeExecute.LogTrace("\nNode {0} Object Not Converted Error: {1}", node.NodeName, objOriginal.ObjectName);
+                            RuntimeExecute.LogTrace("\nNode {0} Object Not Converted Error: {1}", node.NodeName, objOriginal.GetObjectName(false));
                             continue;
                         }
                     }
                     ITriObject tri = objOriginal as ITriObject;
                     if (tri == null)
                     {
-                        RuntimeExecute.LogTrace("\nNode {0} Object Not Converted Error: {1}", node.NodeName, objOriginal.ObjectName);
+                        RuntimeExecute.LogTrace("\nNode {0} Object Not Converted Error: {1}", node.NodeName, objOriginal.GetObjectName(false));
                         continue;
                     }
                     int val = tri.Mesh.NumVerts;
-                    AddOsmProoptimizer(node, vertexPercent, keepNormals);
+                    AddOsmProoptimizer(node, vertexPercent, keepNormals, keepUV);
                     // get new mesh state
                     os = node.ObjectRef.Eval(coreInterface.Time);
                     tri = os.Obj as ITriObject;
                     // ** after modifier operation we can see if success by checking if the mesh size is different than before
                     if (val != tri.Mesh.NumVerts)
                     {
+                        RuntimeExecute.LogTrace("\ncollapse: {0}", collapseStack ? 1 : 0);
                         if (collapseStack)
+                        { 
                             coreInterface.CollapseNode(node, true);
+                        }
+                          
                         optimizedNodes.Add(node);
                     }
                 }
@@ -262,23 +268,25 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
                 string stringVertexPercent = vertexPercent.ToString("F1");
                 stringVertexPercent = stringVertexPercent.Replace('.', '_');
                 string output = "outputFile-" + stringVertexPercent + ".max";
+                RuntimeExecute.LogTrace("\n2filename: " + filename);
                 string new_filename = full_filename.Replace(filename, output);
                 status = coreInterface.SaveToFile(new_filename, true, false);
 
                 // setup to export as FBX as well
                 string outputFBX = new_filename.Replace(".max", ".fbx");
                 string msCmdFbxExport = "exportFile \"" + outputFBX + "\" #noPrompt using:FBXEXP";
-                bool fbxOk = globalInterface.ExecuteMAXScriptScript(msCmdFbxExport, false, null, false);
+                bool fbxOk = globalInterface.ExecuteMAXScriptScript(msCmdFbxExport, Autodesk.Max.MAXScript.ScriptSource.NonEmbedded, false, null, false);
 
                 if (createSVFPreview == true)
                 {
+                    RuntimeExecute.LogTrace("\n3filename: " + filename);
                     string pathRoot = full_filename.Replace(filename, "");
                     string pathSVF = pathRoot + stringVertexPercent;
                     string outputSVF = pathSVF + "\\outputFile-" + stringVertexPercent + ".svf";
                     string outputZIP = pathRoot + "outputFile-" + stringVertexPercent + ".zip";
 
                     string msCmdSvfExport = "exportFile \"" + outputSVF + "\" #noPrompt";
-                    bool svfOk = globalInterface.ExecuteMAXScriptScript(msCmdSvfExport, false, null, false);
+                    bool svfOk = globalInterface.ExecuteMAXScriptScript(msCmdSvfExport, Autodesk.Max.MAXScript.ScriptSource.NonEmbedded, false, null, false);
                     ZipFile.CreateFromDirectory(pathSVF, outputZIP);
                 }
                 // put scene back for next iteration
@@ -303,8 +311,18 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
     {
         static public int ProOptimizeMesh()
         {
+            RuntimeExecute.LogTrace("\nStarting ProOptimizer...");
             IGlobal globalInterface = Autodesk.Max.GlobalInterface.Instance;
             IInterface14 coreInterface = globalInterface.COREInterface14;
+            string full_filename = coreInterface.CurFilePath;
+            string filename = coreInterface.CurFileName;
+            string pathRoot = full_filename.Replace(filename, "");
+            if (!(filename.Length > 0))
+            {
+                RuntimeExecute.LogTrace("\nThe scene must have a filename. The filename is used to produce the output solutions.");
+                return -2; //fail
+            }
+
 
             int count = 0;
 
@@ -312,39 +330,50 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
             try
             {
                 // read input parameters from JSON file
-                InputParams inputParams = JsonConvert.DeserializeObject<InputParams>(File.ReadAllText("params.json"));
-                /*InputParams inputParams = new InputParams
+                InputParams inputParams;
+                try
                 {
-                    VertexPercents = new List<float> { 0.225F, 0.426F, 0.752F, 0.895F },
-                    KeepNormals = false,
-                    CollapseStack = false,
-                    CreateSVFPreview = true
-                };*/
+                    inputParams = JsonConvert.DeserializeObject<InputParams>(File.ReadAllText("params.json"));
+                    RuntimeExecute.LogTrace("\nFound params.json values...");
+                }
+                catch(Exception)
+                {
+                    RuntimeExecute.LogTrace("\nNo params.json found, using internal hard coded values...");
+                    inputParams = new InputParams
+                    {
+                        VertexPercents = new List<float> { 0.223F, 0.334F, 0.445F },
+                        KeepNormals = false,
+                        KeepUV = false,
+                        CollapseStack = false,
+                        CreateSVFPreview = true
+                    };
+                }
+                RuntimeExecute.LogTrace("\nparams.json");
+                RuntimeExecute.LogTrace("\nparams.json : Vertex Percents : {0}", inputParams.VertexPercents.ToString());
+                RuntimeExecute.LogTrace("\nparams.json : Keep Normals : {0}", inputParams.KeepNormals.ToString());
+                RuntimeExecute.LogTrace("\nparams.json : Keep UV : {0}", inputParams.KeepUV.ToString());
+                RuntimeExecute.LogTrace("\nparams.json : Callapse : {0}", inputParams.CollapseStack.ToString());
+                RuntimeExecute.LogTrace("\nparams.json : SVF : {0}", inputParams.CreateSVFPreview.ToString());
 
-                //KDV need to add this to input
-                //inputParams.CreateSVFPreview = true;
 
                 List<string> solution_files = new List <string> { };
                 string outputZIP = null;
                 if (inputParams.CreateSVFPreview == true)
                 {
-                    string full_filename = coreInterface.CurFilePath;
-                    string filename = coreInterface.CurFileName;
-                    string pathRoot = full_filename.Replace(filename, "");
                     string stringVertexPercent = "100_0"; //orginal without any reduction.
                     string pathSVF = pathRoot + stringVertexPercent; 
                     string outputSVF = pathSVF + "\\outputFile-" + stringVertexPercent + ".svf";
                     outputZIP = pathRoot + "outputFile-" + stringVertexPercent + ".zip";
 
                     string msCmdSvfExport = "exportFile \"" + outputSVF + "\" #noPrompt";
-                    bool svfOk = globalInterface.ExecuteMAXScriptScript(msCmdSvfExport, false, null, false);
+                    bool svfOk = globalInterface.ExecuteMAXScriptScript(msCmdSvfExport, Autodesk.Max.MAXScript.ScriptSource.NonEmbedded, false, null, false);
                     ZipFile.CreateFromDirectory(pathSVF, outputZIP);
                     solution_files.Add(outputZIP); // add the 100%
                 }
 
                 foreach (float n in inputParams.VertexPercents)
                 {
-                    string status = ParameterChanger.UpdateNodes(n, inputParams.KeepNormals, inputParams.CollapseStack, inputParams.CreateSVFPreview);
+                    string status = ParameterChanger.UpdateNodes(n, inputParams.KeepNormals, inputParams.KeepUV, inputParams.CollapseStack, inputParams.CreateSVFPreview);
                     if (status != null)
                     {
                         count += 1; // number of solutions successfully created as new scene files.
@@ -364,7 +393,7 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
 
                 if (solution_files.Count > 0)
                 {
-                    string zipName = @".\output.zip";
+                    string zipName = pathRoot + "\\output.zip";
                     using (ZipArchive newZipFile = ZipFile.Open(zipName, ZipArchiveMode.Create))
                     {
                         foreach (string file in solution_files)
@@ -376,7 +405,7 @@ namespace Autodesk.Forge.Sample.DesignAutomation.Max
             }
             catch (Exception e)
             {
-                LogTrace("Exception Error: " + e.Message);
+                LogTrace("Exception Error: " + e.Message + "object name: " + e.Source);
                 return -1; //fail
             }
             LogTrace("Changed {0} scenes.", count);

@@ -19,22 +19,22 @@
 $(document).ready(function () {
     prepareLists();
 
-    $('#clearAccount').click(clearAccount);
-    $('#defineActivityShow').click(defineActivityModal);
-    $('#createAppBundleActivity').click(createAppBundleActivity);
-    $('#getShotgunData').click(getShotgunData);
+    $('#refineActivityBundle').click(clearAccount);
+    //$('#defineActivityShow').click(refineActivityBundle);
+    //$('#createAppBundleActivity').click(createAppBundleActivity);
+    //$('#getShotgunData').click(getShotgunData);
     $('#startWorkitem').click(startWorkitem);
     $('#viewit').click(viewit);
     $('#wireframe').click(doWireframe);
 
     startConnection();
-    startShotgunConnection();
+    //startShotgunConnection();
 });
 
 function prepareLists() {
-    list('activity', '/api/forge/designautomation/activities');
-    list('engines', '/api/forge/designautomation/engines');
-    list('localBundles', '/api/appbundles');
+    list('activity', '/api/forge/designautomation/definedactivities');
+    //list('engines', '/api/forge/designautomation/engines');
+    //list('localBundles', '/api/appbundles');
 }
 
 function list(control, endpoint) {
@@ -56,7 +56,7 @@ function clearAccount() {
         '\n\nYou cannot undo this operation. Proceed?')) return;
 
     jQuery.ajax({
-        url: 'api/forge/designautomation/account',
+        url: 'api/forge/designautomation/clearaccount',
         method: 'DELETE',
         success: function () {
             prepareLists();
@@ -65,25 +65,20 @@ function clearAccount() {
     });
 }
 
-function defineActivityModal() {
-    $("#defineActivityModal").modal();
-}
 
 function createAppBundleActivity() {
     startConnection(function () {
-        writeLog("Defining appbundle and activity for " + $('#engines').val());
-        $("#defineActivityModal").modal('toggle');
+        writeLog("Defining appbundle and activity for Autodesk.3dsMax+2022"); // + $('#engines').val());
+        //$("#defineActivityModal").modal('toggle');
         createAppBundle(function () {
-            createActivity(function () {
-                prepareLists();
-            })
+            createActivity();
         });
     });
 }
 
 function createAppBundle(cb) {
     jQuery.ajax({
-        url: 'api/forge/designautomation/appbundles',
+        url: 'api/forge/designautomation/initializeappbundle',
         method: 'POST',
         contentType: 'application/json',
         data: JSON.stringify({
@@ -91,7 +86,7 @@ function createAppBundle(cb) {
             engine: $('#engines').val()
         }),
         success: function (res) {
-            writeLog('AppBundle: ' + res.appBundle + ', v' + res.version);
+            writeLog('AppBundle: ' + res.appBundle); //+ ', v' + res.version);
             if (cb) cb();
         }
     });
@@ -117,10 +112,13 @@ function startWorkitem() {
     clearPercentsDropdown();
     resetViewers();
 
+    createAppBundleActivity();
+    
+
     var inputFileField = document.getElementById('inputFile');
     // We can use a "default.max" scene. So if nothing is input, we grab it locally (on local server)
     //if (inputFileField.files.length === 0) { alert('Please select an input file'); return; }
-    if ($('#activity').val() === null) { alert('Please select an activity'); return };
+    //if ($('#activity').val() === null) { alert('Please select an activity'); return };
 
     var file = inputFileField.files[0];
     if (file != null)
@@ -129,6 +127,7 @@ function startWorkitem() {
         writeLog('Starting work item with input file: default scene');
 
     var checkboxKeepNormals = document.getElementById('KeepNormals');
+    var checkboxKeepUV = document.getElementById('KeepUV');
     var checkboxCollapseStack = document.getElementById('CollapseStack');
     var checkboxCreateSVFPreview = document.getElementById('CreateSVFPreview');
     var unique_jobid = Date.now();
@@ -139,6 +138,7 @@ function startWorkitem() {
         formData.append('data', JSON.stringify({
             percent: $('#percent').val(),
             KeepNormals: checkboxKeepNormals.checked,
+            KeepUV: checkboxKeepUV.checked,
             CollapseStack: checkboxCollapseStack.checked,
             CreateSVFPreview: checkboxCreateSVFPreview.checked,
             activityName: $('#activity').val(),
@@ -188,59 +188,8 @@ function startConnection(onReady) {
     });
 }
 
-///// Shotgun connection
 
-var sg_connection;
-var sg_connectionId;
-
-function startShotgunConnection(onReady) {
-    if (sg_connection && sg_connection.connectionState) {
-        if (onReady)
-            onReady();
-        return;
-    }
-    sg_connection = new signalR.HubConnectionBuilder().withUrl("/api/signalr/shotgun").build();
-    sg_connection.start()
-        .then(function () {
-            sg_connection.invoke('getConnectionId')
-                .then(function (id) {
-                    sg_connectionId = id; // we'll need this...
-                    if (onReady)
-                        onReady();
-                });
-        });
-
-    connection.on("onComplete", function (message) {
-        writeLog(message);
-    });
-}
-
-function getShotgunData()
-{
-    writeLog('starting shotgun request...');
-    //GetShotgunTokenAsync();
-    startShotgunConnection(function () {
-        writeLog('making shotgun request...');
-        $.ajax({
-            url: 'api/shotgun/gettask',
-            processData: false,
-            contentType: false,
-            type: 'GET',
-            success: function (res) {
-                writeLog('shotgun task: ' + res.task_data);
-                var elem = document.getElementById('percent');
-                elem.value = res.task_data;
-            },
-            error: function (res) {
-                writeLog('shotgun fail: ' + res.status);
-            }
-        });
-    });
-
-//
-    writeLog('finished shotgun request...');
-}
-
+////////////////////////////////////////////////////////////////////////////////////////////////////
 /// viewer UI setup
 
 function clearPercentsDropdown() {
@@ -263,7 +212,7 @@ function getPercentFilenames() {
     var percentsValues = percents.split(/\s*,\s*/).forEach(function (myString) {
         var num = (parseFloat(myString) * 100).toFixed(1);
         var num2 = num.toString().replace(".", "_");
-        var filename = "models/" + connectionId + "/" + num2 + "/outputFile-" + num2 + ".svf";
+        var filename = "models/" + /*"constant"*/ connectionId + "/" + num2 + "/outputFile-" + num2 + ".svf";
         files.push(filename);
         //console.log(myString);
     });;
@@ -293,59 +242,47 @@ function populatePercentsDropdown() {
 var viewer1 = null;
 var viewer2 = null;
 
+var toggleWireframe = false;
+
 // setup a new model in the viewer
 function createViewer(modelName, viewer_id) {
 
     var options = {
         'document': modelName,
         'env': 'Local',
+        'keepCurrentModels': 'false'
     };
     var viewerElement = document.getElementById(viewer_id);
 
-    //var viewer = new Autodesk.Viewing.Private.GuiViewer3D(viewerElement, {}); 
+    //var viewer = new Autodesk.Viewing.GuiViewer3D(viewerElement, {}); 
     var viewer = new Autodesk.Viewing.Viewer3D(viewerElement, {});
 
     Autodesk.Viewing.Initializer(options, function () {
-        viewer.initialize();
-        // Autodesk.Viewing.OBJECT_TREE_CREATED_EVENT, setupMyModel);
-        
+        viewer.initialize();       
         viewer.addEventListener(Autodesk.Viewing.OBJECT_TREE_CREATED_EVENT, function (event) {
-            setTimeout(function () { initViewerOptions(viewer);/*orientViewer(viewer);*/ }, 100);
+            setTimeout(function () {
+                initViewerExtensions(viewer);
+                updateViewerWireframe(viewer);
+            }, 500);
         });
-        viewer.load(options.document);
+        viewer.loadModel(options.document);
     });
 
     return viewer;
 }
 
-//var config = { 'startOnInitialize': true };
-//viewer2.setUp(config);
-//viewer2.setLightPreset(4);
-//viewer2.setQualityLevel(false, false);
-//viewer2.setGhosting(true);
-//viewer2.setGroundShadow(true);
-//viewer2.setGroundReflection(true);
-//viewer2.setEnvMapBackground(false);
-//viewer2.setProgressiveRendering(true);
-//viewer2.setBackgroundColor(255, 0, 0, 255, 255, 255);
-//viewer2.impl.sceneUpdated(true);
-//viewer2.impl.unloadCurrentModel();
-
-function initViewerOptions(viewer) {
-    setupViewerOptions(viewer);
-    var promise1 = viewer.loadExtension('Autodesk.Viewing.Wireframes');
-    promise1.then((successMessage) => {
-        console.log("loadExtension: " + successMessage);
-    });
-    //viewer.impl.sceneUpdated(true);
+function initViewerExtensions(viewer) {
+    // put viewcube into viewer, but no other GUI controls.
+    viewer.loadExtension("Autodesk.ViewCubeUi");
+    // load wirframe extension
+    viewer.loadExtension('Autodesk.Viewing.Wireframes');
 }
 
-function setupViewerOptions(viewer) {
+function setupViewerBackground(viewer) {
+    console.log("setupViewerBackground");
     viewer.setEnvMapBackground(false);
     // a shade matching 3ds Max logo color...
     viewer.setBackgroundColor(14, 167, 167, 255, 255, 255);
-    viewer.createViewCube();
-    viewer.displayViewCube(true);
 }
 
 // helper function to allow the extension to resolve before using it.
@@ -353,31 +290,24 @@ const sleep = (milliseconds) => {
     return new Promise(resolve => setTimeout(resolve, milliseconds))
 }
 
+
 function loadViewerModelReduced() {
     var indexViewFile2 = document.getElementById("solutions").selectedIndex;
     var viewFile2 = files[indexViewFile2];
 
     if (viewer2 != null) {
-        var stateFilter = {
-            seedURN: false,
-            objectSet: false,
-            viewport: true,
-            renderOptions: false
-        };
-        var state = viewer2.getState(stateFilter);
-
-        viewer2.tearDown();
-        viewer2.load(viewFile2);
-        sleep(600).then(() => {
-            var b = viewer2.restoreState(state, stateFilter, true);
-            updateViewerWireframe(viewer2);
-        })
-        
-        console.log('loaded: ' + viewFile2);
+        var ext = viewer2.getExtension("Autodesk.ViewCubeUi");
+        ext.deactivate();
+        ext = null;
+        ext = viewer2.getExtension("Autodesk.Viewing.Wireframes");
+        ext.deactivate();
+        ext = null;
+        viewer2.finish();
+        viewer2 = null;
+        viewer2 = createViewer(viewFile2, 'forgeViewer2');
     }
 }
 
-var toggleWireframe = false;
 function doWireframe() {
     toggleWireframe = !toggleWireframe;
     updateViewerWireframe(viewer1);
@@ -387,11 +317,20 @@ function doWireframe() {
 function updateViewerWireframe(viewer) {
     var ext = viewer.getExtension("Autodesk.Viewing.Wireframes");
     if (toggleWireframe == true) {
-        ext.activate();      
+        viewer.setLightPreset(7);
+        if (ext != null) {
+            ext.activate();
+            mat = new THREE.MeshBasicMaterial();
+            mat.color.setRGB(1, 0, 0);  // red
+            mat.flatShading = true;
+            ext.setLinesMaterial(mat);
+        }
     } else {
-        ext.deactivate();
+        viewer.setLightPreset(0);
+        if (ext != null)
+            ext.deactivate();
     }
-   setupViewerOptions(viewer);
+    setupViewerBackground(viewer);
 }
 
 function resetViewers() {
@@ -412,15 +351,12 @@ function resetViewers() {
 
 function viewit() {
     populatePercentsDropdown();
-    //return;
-    //var viewFile = "https://kevinvandecar.github.io/assets/forge_logo/forge.SVF";
-    //var viewFile2 = "https://kevinvandecar.github.io/assets/x-wing_max/svf/xwing.SVF";
-    //var viewFile2 = "https://vandecar.s3.amazonaws.com/assets/svf/horse/50/50.svf";
 
     // should always have a 100% result
-    var viewFile1 = "models/" + connectionId + "/100_0/outputFile-100_0.svf";
-    //var viewFile2 = document.getElementById("solutions").value;
+    var viewFile1 = "models/" + /*"constant"*/ connectionId + "/100_0/outputFile-100_0.svf";
     var viewFile2 = files[0]; // start with lowest reduction...
+    console.log(viewFile1);
+    console.log(viewFile2);
     
     viewer1 = createViewer(viewFile1, 'forgeViewer1');
     viewer2 = createViewer(viewFile2, 'forgeViewer2');

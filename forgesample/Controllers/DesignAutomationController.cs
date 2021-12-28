@@ -23,6 +23,7 @@ using Autodesk.Forge.Model;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.SignalR;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -54,9 +55,17 @@ namespace forgeSample.Controllers
         private static string localSolutionsFolderRoot = "wwwroot/models/";
         private static string currentJobFolder;
         private static string unique_jobid;
+        private static string zipFileName = "ProOptimizerAutomation"; 
+        private static string engineName = "Autodesk.3dsMax+2022"; 
+        private static string appBundleName = zipFileName + "AppBundle";
+        private static string activityName = zipFileName + "Activity";
+        private static string maxcommandLine = "$(engine.path)\\3dsmaxbatch.exe -sceneFile \"$(args[inputFile].path)\" \"$(settings[script].path)\"";
+        private static string maxscript = "da = dotNetClass(\"Autodesk.Forge.Sample.DesignAutomation.Max.RuntimeExecute\")\nda.ProOptimizeMesh()\n";
+
+
 
         // Used to access the application folder (temp location for files & bundles)
-        private IHostingEnvironment _env;
+        private IWebHostEnvironment _env;
         // used to access the SignalR Hub
         private IHubContext<DesignAutomationHub> _hubContext;
         // Local folder for bundles
@@ -67,79 +76,25 @@ namespace forgeSample.Controllers
         public static string Alias { get { return "dev"; } }
         // Design Automation v3 API
         DesignAutomationClient _designAutomation;
-        public static void CleanUpServerFiles()
-        {
-            /*if (System.IO.File.Exists(localSolutionsFilenameBase))
-                System.IO.File.Delete(localSolutionsFilenameBase);*/
-            if (System.IO.Directory.Exists(localSolutionsFolderRoot))
-                // warning, if changing locations, make sure this is safe in your environment. 
-                // during debugging, you may accidentally delete files you did not intend to delete
-                System.IO.Directory.Delete(localSolutionsFolderRoot, true);
-        }
+
 
         // Constructor, where env and hubContext are specified
-        public DesignAutomationController(IHostingEnvironment env, IHubContext<DesignAutomationHub> hubContext, DesignAutomationClient api)
+        public DesignAutomationController(IWebHostEnvironment env, IHubContext<DesignAutomationHub> hubContext, DesignAutomationClient api)
         {
             _designAutomation = api;
             _env = env;
             _hubContext = hubContext;
         }
-        /// <summary>
-        /// Helper to identify the engine
-        /// </summary>
-        private dynamic EngineAttributes(string engine)
-        {
-            // we are only concerned about 3ds Max in this demo.
-            if (engine.Contains("3dsMax")) return new { commandLine = "$(engine.path)\\3dsmaxbatch.exe -sceneFile \"$(args[inputFile].path)\" $(settings[script].path)", extension = "max", script = "da = dotNetClass(\"Autodesk.Forge.Sample.DesignAutomation.Max.RuntimeExecute\")\nda.ProOptimizeMesh()\n" };
-            //if (engine.Contains("AutoCAD")) return new { commandLine = "$(engine.path)\\accoreconsole.exe /i $(args[inputFile].path) /al $(appbundles[{0}].path) /s $(settings[script].path)", extension = "dwg", script = "UpdateParam\n" };
-            //if (engine.Contains("Inventor")) return new { commandLine = "$(engine.path)\\InventorCoreConsole.exe /i $(args[inputFile].path) /al $(appbundles[{0}].path)", extension = "ipt", script = string.Empty };
-            //if (engine.Contains("Revit")) return new { commandLine = "$(engine.path)\\revitcoreconsole.exe /i $(args[inputFile].path) /al $(appbundles[{0}].path)", extension = "rvt", script = string.Empty };
-            throw new Exception("Invalid engine");
-        }
 
-        /// <summary>
-        /// PRESENTATION
-        /// Return a list of available engines
-        /// </summary>
-        [HttpGet]
-        [Route("api/forge/designautomation/engines")]
-        public async Task<List<string>> GetAvailableEngines()
-        {
-            dynamic oauth = await OAuthController.GetInternalAsync();
 
-            // define Engines API            
-            Page<string> engines = await _designAutomation.GetEnginesAsync();
-            engines.Data.Sort();
-
-            return engines.Data; // return list of engines
-        }
-
-        /// <summary>
-        /// Names of app bundles on this project
-        /// </summary>
-        [HttpGet]
-        [Route("api/appbundles")]
-        public string[] GetLocalBundles()
-        {
-            // this folder is placed under the public folder, which may expose the bundles
-            // but it was defined this way so it be published on most hosts easily
-            return Directory.GetFiles(LocalBundlesFolder, "*.zip").Select(Path.GetFileNameWithoutExtension).ToArray();
-        }
-
-        /// <summary>
+         /// <summary>
         /// PRESENTATION
         /// Define a new appbundle
         /// </summary>
         [HttpPost]
-        [Route("api/forge/designautomation/appbundles")]
-        public async Task<IActionResult> CreateAppBundle([FromBody]JObject appBundleSpecs)
+        [Route("api/forge/designautomation/initializeappbundle")]
+        public async Task<IActionResult> InitializeAppBundle([FromBody]JObject appBundleSpecs)
         {
-            // basic input validation
-            string zipFileName = appBundleSpecs["zipFileName"].Value<string>();
-            string engineName = appBundleSpecs["engine"].Value<string>();
-
-            // standard name for this sample
-            string appBundleName = zipFileName + "AppBundle";
 
             // check if ZIP with bundle is here
             string packageZipPath = Path.Combine(LocalBundlesFolder, zipFileName + ".zip");
@@ -148,8 +103,8 @@ namespace forgeSample.Controllers
             // get defined app bundles
             Page<string> appBundles = await _designAutomation.GetAppBundlesAsync();
 
-            // check if app bundle is already define
-            dynamic newAppVersion;
+            // check if app bundle is already defined
+            dynamic newAppVersion; 
             string qualifiedAppBundleId = string.Format("{0}.{1}+{2}", NickName, appBundleName, Alias);
             if (!appBundles.Data.Contains(qualifiedAppBundleId))
             {
@@ -168,43 +123,26 @@ namespace forgeSample.Controllers
                 // create alias pointing to v1
                 Alias aliasSpec = new Alias() { Id = Alias, Version = 1 };
                 Alias newAlias = await _designAutomation.CreateAppBundleAliasAsync(appBundleName, aliasSpec);
-            }
-            else
-            {
-                // create new version
-                AppBundle appBundleSpec = new AppBundle()
-                {
-                    Engine = engineName,
-                    Description = appBundleName
-                };
-                newAppVersion = await _designAutomation.CreateAppBundleVersionAsync(appBundleName, appBundleSpec);
-                if (newAppVersion == null) throw new Exception("Cannot create new version");
 
-                // update alias pointing to v+1
-                AliasPatch aliasSpec = new AliasPatch()
-                {
-                    Version = newAppVersion.Version
-                };
-                Alias newAlias = await _designAutomation.ModifyAppBundleAliasAsync(appBundleName, Alias, aliasSpec);
+                // upload the zip with .bundle
+                RestClient uploadClient = new RestClient(newAppVersion.UploadParameters.EndpointURL);
+                RestRequest request = new RestRequest(string.Empty, Method.POST);
+                request.AlwaysMultipartFormData = true;
+                foreach (KeyValuePair<string, string> x in newAppVersion.UploadParameters.FormData) request.AddParameter(x.Key, x.Value);
+                request.AddFile("file", packageZipPath);
+                request.AddHeader("Cache-Control", "no-cache");
+                await uploadClient.ExecuteAsync(request);
+
             }
 
-            // upload the zip with .bundle
-            RestClient uploadClient = new RestClient(newAppVersion.UploadParameters.EndpointURL);
-            RestRequest request = new RestRequest(string.Empty, Method.POST);
-            request.AlwaysMultipartFormData = true;
-            foreach (KeyValuePair<string, string> x in newAppVersion.UploadParameters.FormData) request.AddParameter(x.Key, x.Value);
-            request.AddFile("file", packageZipPath);
-            request.AddHeader("Cache-Control", "no-cache");
-            await uploadClient.ExecuteTaskAsync(request);
-
-            return Ok(new { AppBundle = qualifiedAppBundleId, Version = newAppVersion.Version });
+            return Ok(new { AppBundle = qualifiedAppBundleId });
         }
 
         /// <summary>
         /// Get all Activities defined for this account
         /// </summary>
         [HttpGet]
-        [Route("api/forge/designautomation/activities")]
+        [Route("api/forge/designautomation/definedactivities")]
         public async Task<List<string>> GetDefinedActivities()
         {
             // filter list of 
@@ -225,13 +163,6 @@ namespace forgeSample.Controllers
         [Route("api/forge/designautomation/activities")]
         public async Task<IActionResult> CreateActivity([FromBody]JObject activitySpecs)
         {
-            // basic input validation
-            string zipFileName = activitySpecs["zipFileName"].Value<string>();
-            string engineName = activitySpecs["engine"].Value<string>();
-
-            // standard name for this sample
-            string appBundleName = zipFileName + "AppBundle";
-            string activityName = zipFileName + "Activity";
 
             // 
             Page<string> activities = await _designAutomation.GetActivitiesAsync();
@@ -239,23 +170,23 @@ namespace forgeSample.Controllers
             if (!activities.Data.Contains(qualifiedActivityId))
             {
                 // define the activity
-                dynamic engineAttributes = EngineAttributes(engineName);
-                string commandLine = string.Format(engineAttributes.commandLine, appBundleName);
+                //dynamic engineAttributes = EngineAttributes(engineName);
+                string localCommandLine = string.Format(maxcommandLine, appBundleName);
                 Activity activitySpec = new Activity()
                 {
                     Id = activityName,
                     Appbundles = new List<string>() { string.Format("{0}.{1}+{2}", NickName, appBundleName, Alias) },
-                    CommandLine = new List<string>() { commandLine },
+                    CommandLine = new List<string>() { localCommandLine },
                     Engine = engineName,
                     Parameters = new Dictionary<string, Parameter>()
                     {
                         { "inputFile", new Parameter() { Description = "input file", LocalName = "$(inputFile)", Ondemand = false, Required = true, Verb = Verb.Get, Zip = false } },
                         { "inputJson", new Parameter() { Description = "input json", LocalName = "params.json", Ondemand = false, Required = false, Verb = Verb.Get, Zip = false } },
-                        { "outputFile", new Parameter() { Description = "output file", LocalName = "output.zip" /*+ engineAttributes.extension*/, Ondemand = false, Required = true, Verb = Verb.Put, Zip = false } }
+                        { "outputFile", new Parameter() { Description = "output file", LocalName = "output.zip", Ondemand = false, Required = true, Verb = Verb.Put, Zip = false } }
                     },
                     Settings = new Dictionary<string, ISetting>()
                     {
-                        { "script", new StringSetting(){ Value = engineAttributes.script } }
+                        { "script", new StringSetting(){ Value = maxscript } }
                     }
                 };
                 Activity newActivity = await _designAutomation.CreateActivityAsync(activitySpec);
@@ -293,12 +224,13 @@ namespace forgeSample.Controllers
             // basic input validation
             JObject workItemData = JObject.Parse(input.data);            
             string percentParam = workItemData["percent"].Value<string>();
-            string keepNormalsParam = workItemData["KeepNormals"].Value<string>(); 
+            string keepNormalsParam = workItemData["KeepNormals"].Value<string>();
+            string keepUVParam = workItemData["KeepUV"].Value<string>();
             string collapseStackParam = workItemData["CollapseStack"].Value<string>();
             string createSVFPreviewParam = workItemData["CreateSVFPreview"].Value<string>();
-            string activityName = string.Format("{0}.{1}", NickName, workItemData["activityName"].Value<string>());
+            string localActivityName = string.Format("{0}.{1}+{2}", NickName, activityName, Alias);
             string browerConnectionId = workItemData["browerConnectionId"].Value<string>();
-            unique_jobid = browerConnectionId;
+            unique_jobid = /*"constant"*/ browerConnectionId;
 
             // save the file on the server
             string fileSavePath = null;
@@ -330,7 +262,8 @@ namespace forgeSample.Controllers
                 await buckets.CreateBucketAsync(bucketPayload, "US");
             }
             catch { }; // in case bucket already exists
-                       // 2. upload inputFile
+          
+            // 2. upload inputFile
             string inputFileNameOSS = string.Format("{0}_input_{1}", DateTime.Now.ToString("yyyyMMddhhmmss"), Path.GetFileName(input_fname)); //
             ObjectsApi objects = new ObjectsApi();
             objects.Configuration.AccessToken = oauth.access_token;
@@ -355,6 +288,7 @@ namespace forgeSample.Controllers
             // Note these dyanmic variables are the names matching in the JSON and used in the plugin to receive data
             inputJson.VertexPercents = numbers;
             inputJson.KeepNormals = keepNormalsParam;
+            inputJson.KeepUV = keepUVParam;
             inputJson.CollapseStack = collapseStackParam;
             inputJson.CreateSVFPreview = createSVFPreviewParam;
             SVFpreview = createSVFPreviewParam.Contains("True", StringComparison.CurrentCultureIgnoreCase) ? true : false;
@@ -378,7 +312,7 @@ namespace forgeSample.Controllers
             string callbackUrl = string.Format("{0}/api/forge/callback/designautomation?id={1}&outputFileName={2}", OAuthController.GetAppSetting("FORGE_WEBHOOK_URL"), browerConnectionId, outputFileNameOSS);
             WorkItem workItemSpec = new WorkItem()
             {
-                ActivityId = activityName,
+                ActivityId = localActivityName,
                 Arguments = new Dictionary<string, IArgument>()
                 {
                     { "inputFile", inputFileArgument },
@@ -387,9 +321,19 @@ namespace forgeSample.Controllers
                     { "onComplete", new XrefTreeArgument { Verb = Verb.Post, Url = callbackUrl } }
                 }
             };
-            WorkItemStatus workItemStatus = await _designAutomation.CreateWorkItemsAsync(workItemSpec);
 
-            return Ok(new { WorkItemId = workItemStatus.Id });
+            ObjectResult theresult;
+            try
+            {
+                WorkItemStatus workItemStatus = await _designAutomation.CreateWorkItemAsync(workItemSpec);
+                theresult = Ok(new { WorkItemId = workItemStatus.Id });
+            } 
+            catch (Exception e)
+            {
+                theresult = new BadRequestObjectResult(e);
+            }
+
+            return theresult;
         }
 
         /// <summary>
@@ -447,17 +391,29 @@ namespace forgeSample.Controllers
         }
 
         /// <summary>
+        /// Delete the temporary files used during preview of job.
+        /// </summary>
+        public static void CleanUpServerFiles()
+        {
+            /*if (System.IO.File.Exists(localSolutionsFilenameBase))
+                System.IO.File.Delete(localSolutionsFilenameBase);*/
+            if (System.IO.Directory.Exists(localSolutionsFolderRoot))
+                // warning, if changing locations, make sure this is safe in your environment. 
+                // during debugging, you may accidentally delete files you did not intend to delete
+                System.IO.Directory.Delete(localSolutionsFolderRoot, true);
+        }
+
+        /// <summary>
         /// Clear the accounts (for debugging purposes)
         /// </summary>
         [HttpDelete]
-        [Route("api/forge/designautomation/account")]
+        [Route("api/forge/designautomation/clearaccount")]
         public async Task<IActionResult> ClearAccount()
         {
             // clear account
             await _designAutomation.DeleteForgeAppAsync("me");
             return Ok();
         }
-
 
     }
 
@@ -467,6 +423,15 @@ namespace forgeSample.Controllers
     public class DesignAutomationHub : Microsoft.AspNetCore.SignalR.Hub
     {
         public string GetConnectionId() { return Context.ConnectionId; }
+
+        // Overridden OnDisconnectedAsync that allows clean up of temp files used during preview of job.
+        // This is triggered upon close of browser, or navigation away from page.
+        public override async Task OnDisconnectedAsync(Exception exception)
+        {
+            // remember, that certain events are not triggered in debugger, like this one.
+            forgeSample.Controllers.DesignAutomationController.CleanUpServerFiles();
+            await base.OnDisconnectedAsync(exception);
+        }
     }
 
 }

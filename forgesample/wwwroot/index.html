@@ -12,10 +12,10 @@
     <!-- .NET SignalR -->
     <script src="//unpkg.com/@aspnet/signalr@1.1.0/dist/browser/signalr.min.js"></script>
     <!-- Autodesk Forge Viewer files -->
-    <!--<link rel="stylesheet" href="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/style.min.css" type="text/css">
-    <script src="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/viewer3D.min.js"></script>-->
-    <link rel="stylesheet" href="https://developer.api.autodesk.com/modelderivative/v2/viewers/style.min.css?v=v6.2" type="text/css">
-    <script src="https://developer.api.autodesk.com/modelderivative/v2/viewers/viewer3D.min.js?v=v6.2"></script>
+    
+    <link rel="stylesheet" href="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/style.min.css" type="text/css">
+    <script src="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/viewer3D.min.js"></script>
+    
     <!-- Files for this project -->
     <link href="css/main.css" rel="stylesheet" />
     <script src="js/ForgeDesignAutomation.js"></script>
@@ -43,8 +43,8 @@
                 </li>
             </ul>
             <div style="float: right; margin-top: 15px; cursor: pointer;">
-                <span style="padding-right: 5px;" data-toggle="modal" data-target="#defineActivityModal" title="Configure AppBundle & Activity"><span
-                        class="glyphicon glyphicon-cog glyphiconTop mlink"> </span> Configure</span>
+                <span style="padding-right: 5px;" id="refineActivityBundle" title="Reset AppBundle & Activity"><span
+                        class="glyphicon glyphicon-cog glyphiconTop mlink"> </span> Reset AppBundle/Activity</span>
             </div>
         </div>
     </nav>
@@ -62,6 +62,10 @@
                     <input type="checkbox" class="btn-primary" id="KeepNormals" placeholder="Keep Normals?" checked>
                 </div>
                 <div class="form-group">
+                    <label for="KeepUV">Keep UV (texture/materials)?:</label>
+                    <input type="checkbox" class="btn-primary" id="KeepUV" placeholder="Keep UV?" checked>
+                </div>
+                <div class="form-group">
                     <label for="CollapseStack">Collapse Stack?:</label>
                     <input type="checkbox" class="btn-primary" id="CollapseStack" placeholder="Collapse Stack?" checked>
                 </div>
@@ -74,11 +78,15 @@
                     <label for="inputFile">Select input 3ds Max file <br />(if not selected a default scene is used) </label>
                     <input type="file" class="form-control-file" id="inputFile" accept=".max">
                 </div>
-                <div class="form-group">
-                    <label for="activity">Existing activities</label>
-                    <select class="form-control" id="activity"> </select>
-                </div>
-                <center><button class="btn btn-primary" id="startWorkitem">Start workitem</button></center><br />
+                <!--<div class="form-group">
+        <label for="activity">Existing activities</label>
+        <select class="form-control" id="activity"> </select>
+    </div>-->
+                <center>
+                    <button class="btn btn-primary" id="startWorkitem">
+                        ProOptimize input file <!--Start workitem-->
+                    </button>
+                </center><br />
                 <pre id="outputlog" style="height: calc(50vh - 120px); width: 100%; overflow-y: scroll; overflow-x: scroll;"></pre>
             </div>
             <div class="col-sm-8">
@@ -100,35 +108,6 @@
                     <div id="forgeViewer2" style="height: 100%;"></div>
                 </div>
             </div>
-    <!-- Modal Define AppBundle & Activity -->
-    <div class="modal fade" id="defineActivityModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Cancel"><span aria-hidden="true">&times;</span></button>
-                    <h4 class="modal-title" id="myModalLabel">Create/Update AppBundle & Activity</h4>
-                </div>
-                <div class="modal-body">
-                  <div class="alert alert-warning"><center>You just need to define AppBundle &amp; Activity once.<br />If the plugin code changed, redefine (creates a new version).</center></div>
-                    <div class="form-group">
-                        <label for="localBundles">Select a local AppBundle:</label>
-                        <select class="form-control" id="localBundles"> </select>
-                        <b>Tip:</b> Make sure .ZIP bundles are placed at <b>/bundles/</b> folder
-                    </div>
-                    <div class="form-group">
-                        <label for="engines">Select engine:</label>
-                        <select class="form-control" id="engines"> </select>
-                    </div>
-                    For this sample the .ZIP name is used as suffix to define <b>AppBundle</b> and <b>Activity</b>
-                    names. Activities will have file and params input, and file output.
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-danger" id="clearAccount">Clear account</button>
-                    <button type="button" class="btn btn-primary" id="createAppBundleActivity">Create/Update</button>
-                </div>
-            </div>
-        </div>
-    </div>
 </body>
 
 </html>
