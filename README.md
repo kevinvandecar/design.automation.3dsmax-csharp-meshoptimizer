@@ -18,3 +18,4 @@ It has a few components to handle the automation:
 
 The `designautomation.sln` includes the 3ds Max ProOptimizerAutomation bundles and the webapp. The `BUILD` action will copy all files to the bundle folder, generate a .zip and copy to the webapp folder. It requires [7-zip](https://www.7-zip.org/) tool.
 
+NOTE!!!! I moved branches around to make it cleaer which one to use. The default "master" is now the latest and the one deployed as a sample. If you have any clones of this repo, please get a fresh copy. This was done when updating to the 3ds Max 2023 design automation engine.
