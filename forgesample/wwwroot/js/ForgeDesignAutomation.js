@@ -68,7 +68,7 @@ function clearAccount() {
 
 function createAppBundleActivity() {
     startConnection(function () {
-        writeLog("Defining appbundle and activity for Autodesk.3dsMax+2022"); // + $('#engines').val());
+        writeLog("Defining appbundle and activity for Autodesk.3dsMax+2023"); // + $('#engines').val());
         //$("#defineActivityModal").modal('toggle');
         createAppBundle(function () {
             createActivity();

@@ -56,7 +56,7 @@ namespace forgeSample.Controllers
         private static string currentJobFolder;
         private static string unique_jobid;
         private static string zipFileName = "ProOptimizerAutomation"; 
-        private static string engineName = "Autodesk.3dsMax+2022"; 
+        private static string engineName = "Autodesk.3dsMax+2023";
         private static string appBundleName = zipFileName + "AppBundle";
         private static string activityName = zipFileName + "Activity";
         private static string maxcommandLine = "$(engine.path)\\3dsmaxbatch.exe -sceneFile \"$(args[inputFile].path)\" \"$(settings[script].path)\"";
