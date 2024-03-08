@@ -4,8 +4,8 @@
 ![.NET](https://img.shields.io/badge/.NET%207-blue.svg)
 [![License](http://img.shields.io/:license-MIT-blue.svg)](http://opensource.org/licenses/MIT)
 
-[![oAuth2](https://img.shields.io/badge/oAuth2-v1-green.svg)](http://developer.autodesk.com/)
-[![Data-Management](https://img.shields.io/badge/Data%20Management-v1-green.svg)](http://developer.autodesk.com/)
+[![oAuth2](https://img.shields.io/badge/oAuth2-v2-green.svg)](http://developer.autodesk.com/)
+[![Data-Management](https://img.shields.io/badge/Data%20Management-v2-green.svg)](http://developer.autodesk.com/)
 [![Design-Automation](https://img.shields.io/badge/Design%20Automation-v3-green.svg)](http://developer.autodesk.com/)
 
 ![Basic](https://img.shields.io/badge/Level-Basic-blue.svg)
