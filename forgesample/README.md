@@ -1,7 +1,7 @@
 # learn.forge.designautomation - ASP.NET Core
 
 ![Platforms](https://img.shields.io/badge/platform-Windows|MacOS-lightgray.svg)
-![.NET](https://img.shields.io/badge/.NET%20Core-2.1-blue.svg)
+![.NET](https://img.shields.io/badge/.NET%207-blue.svg)
 [![License](http://img.shields.io/:license-MIT-blue.svg)](http://opensource.org/licenses/MIT)
 
 [![oAuth2](https://img.shields.io/badge/oAuth2-v1-green.svg)](http://developer.autodesk.com/)
@@ -37,14 +37,14 @@ Clone this project or download it. It's recommended to install [GitHub desktop](
     
 **ngrok**
 
-When a `Workitem` completes, **Design Automation** can notify our application. As the app is running locally (i.e. `localhost`), it's not reacheable from the internet. `ngrok` tool creates a temporary address that channels notifications to our `localhost` address.
+When a `Workitem` completes, **Design Automation** can notify our application. As the app is running locally (i.e. `localhost`), it's not reachable from the internet. `ngrok` tool creates a temporary address that channels notifications to our `localhost` address.
 
 After [download ngrok](https://ngrok.com/), run `ngrok http 3000 -host-header="localhost:3000"`, then copy the `http` address into the `FORGE_WEBHOOK_URL` environment variable (see next). For this sample, do not use the `https` address.
 
 ![](../media/webapp/ngrok_setup.png)
 Design Automation in this sample uses environment variables to set credentials.  
 ```C#
-                builder.AddForgeAlternativeEnvironmentVariables();
+builder.AddForgeAlternativeEnvironmentVariables();
 ```
 You can set them as system wide environment variables or setting them in the IDE.
 

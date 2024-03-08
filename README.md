@@ -4,7 +4,7 @@
 ![Platforms](https://img.shields.io/badge/Plugins-Windows-lightgray.svg)
 ![.NET 7](https://shields.io/badge/.NET%207-blue.svg)
 ![.NET 4.8](https://shields.io/badge/.NET%20Framework%204.8-blue.svg)
-[![3dsMax](https://img.shields.io/badge/3ds%20Max-2020-00aaaa.svg)](http://developer.autodesk.com/)
+[![3dsMax](https://img.shields.io/badge/3ds%20Max-2024-00aaaa.svg)](http://developer.autodesk.com/)
 
 ## Description
 
