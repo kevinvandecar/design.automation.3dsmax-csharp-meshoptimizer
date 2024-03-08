@@ -20,15 +20,11 @@ $(document).ready(function () {
     prepareLists();
 
     $('#refineActivityBundle').click(clearAccount);
-    //$('#defineActivityShow').click(refineActivityBundle);
-    //$('#createAppBundleActivity').click(createAppBundleActivity);
-    //$('#getShotgunData').click(getShotgunData);
     $('#startWorkitem').click(startWorkitem);
     $('#viewit').click(viewit);
     $('#wireframe').click(doWireframe);
 
-    startConnection();
-    //startShotgunConnection();
+    startConnection();    
 });
 
 function prepareLists() {
@@ -66,12 +62,12 @@ function clearAccount() {
 }
 
 
-function createAppBundleActivity() {
+function createAppBundleActivity(createWorkitemCB) {
     startConnection(function () {
-        writeLog("Defining appbundle and activity for Autodesk.3dsMax+2023"); // + $('#engines').val());
+        writeLog("Defining appbundle and activity for Autodesk.3dsMax+2024"); // + $('#engines').val());
         //$("#defineActivityModal").modal('toggle');
         createAppBundle(function () {
-            createActivity();
+            createActivity(createWorkitemCB);
         });
     });
 }
@@ -112,48 +108,47 @@ function startWorkitem() {
     clearPercentsDropdown();
     resetViewers();
 
-    createAppBundleActivity();
-    
+     createAppBundleActivity(function () {
+        var inputFileField = document.getElementById('inputFile');
+        // We can use a "default.max" scene. So if nothing is input, we grab it locally (on local server)
+        //if (inputFileField.files.length === 0) { alert('Please select an input file'); return; }
+        //if ($('#activity').val() === null) { alert('Please select an activity'); return };
 
-    var inputFileField = document.getElementById('inputFile');
-    // We can use a "default.max" scene. So if nothing is input, we grab it locally (on local server)
-    //if (inputFileField.files.length === 0) { alert('Please select an input file'); return; }
-    //if ($('#activity').val() === null) { alert('Please select an activity'); return };
+        var file = inputFileField.files[0];
+        if (file != null)
+            writeLog('Starting work item with input file: ' + file.name);
+        else
+            writeLog('Starting work item with input file: default scene');
 
-    var file = inputFileField.files[0];
-    if (file != null)
-        writeLog('Starting work item with input file: ' + file.name);
-    else 
-        writeLog('Starting work item with input file: default scene');
-
-    var checkboxKeepNormals = document.getElementById('KeepNormals');
-    var checkboxKeepUV = document.getElementById('KeepUV');
-    var checkboxCollapseStack = document.getElementById('CollapseStack');
-    var checkboxCreateSVFPreview = document.getElementById('CreateSVFPreview');
-    var unique_jobid = Date.now();
-    startConnection(function () {
-        var formData = new FormData();
-        formData.append('inputFile', file);
-        formData.append('unique_jobid', unique_jobid);
-        formData.append('data', JSON.stringify({
-            percent: $('#percent').val(),
-            KeepNormals: checkboxKeepNormals.checked,
-            KeepUV: checkboxKeepUV.checked,
-            CollapseStack: checkboxCollapseStack.checked,
-            CreateSVFPreview: checkboxCreateSVFPreview.checked,
-            activityName: $('#activity').val(),
-            browerConnectionId: connectionId
-        }));
-        writeLog('Uploading input file...');
-        $.ajax({
-            url: 'api/forge/designautomation/workitems',
-            data: formData,
-            processData: false,
-            contentType: false,
-            type: 'POST',
-            success: function (res) {
-                writeLog('Workitem started: ' + res.workItemId);
-            }
+        var checkboxKeepNormals = document.getElementById('KeepNormals');
+        var checkboxKeepUV = document.getElementById('KeepUV');
+        var checkboxCollapseStack = document.getElementById('CollapseStack');
+        var checkboxCreateSVFPreview = document.getElementById('CreateSVFPreview');
+        var unique_jobid = Date.now();
+        startConnection(function () {
+            var formData = new FormData();
+            formData.append('inputFile', file);
+            formData.append('unique_jobid', unique_jobid);
+            formData.append('data', JSON.stringify({
+                percent: $('#percent').val(),
+                KeepNormals: checkboxKeepNormals.checked,
+                KeepUV: checkboxKeepUV.checked,
+                CollapseStack: checkboxCollapseStack.checked,
+                CreateSVFPreview: checkboxCreateSVFPreview.checked,
+                activityName: $('#activity').val(),
+                browerConnectionId: connectionId
+            }));
+            writeLog('Uploading input file...');
+            $.ajax({
+                url: 'api/forge/designautomation/workitems',
+                data: formData,
+                processData: false,
+                contentType: false,
+                type: 'POST',
+                success: function (res) {
+                    writeLog('Workitem started: ' + res.workItemId);
+                }
+            });
         });
     });
 }

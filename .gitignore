@@ -333,3 +333,7 @@ ASALocalRun/
 
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
+
+*.zip
+*.dll
+forgesample/wwwroot/models/

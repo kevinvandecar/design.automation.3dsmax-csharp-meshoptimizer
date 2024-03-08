@@ -42,6 +42,13 @@ When a `Workitem` completes, **Design Automation** can notify our application. A
 After [download ngrok](https://ngrok.com/), run `ngrok http 3000 -host-header="localhost:3000"`, then copy the `http` address into the `FORGE_WEBHOOK_URL` environment variable (see next). For this sample, do not use the `https` address.
 
 ![](../media/webapp/ngrok_setup.png)
+Design Automation in this sample uses environment variables to set credentials.  
+```C#
+                builder.AddForgeAlternativeEnvironmentVariables();
+```
+You can set them as system wide environment variables or setting them in the IDE.
+
+Note, the id and secret for the Design Automation must be FORGE_CLIENT_ID and FORGE_CLIENT_SECRET.
 
 **Visual Studio** (Windows):
 
@@ -49,7 +56,7 @@ Right-click on the project, then go to **Debug**. Adjust the settings as shown b
 
 ![](../media/webapp/visual_studio_settings.png)
 
-**Visual Sutdio Code** (Windows, MacOS):
+**Visual Studio Code** (Windows, MacOS):
 
 Open the `webapp` folder (only), at the bottom-right, select **Yes** and **Restore**. This restores the packages (e.g. Autodesk.Forge) and creates the launch.json file. See *Tips & Tricks* for .NET Core on MacOS.
 
