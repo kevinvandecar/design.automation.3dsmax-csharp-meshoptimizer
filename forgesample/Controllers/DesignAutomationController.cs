@@ -18,6 +18,7 @@
 
 using Autodesk.Forge;
 using Autodesk.Forge.DesignAutomation;
+using Autodesk.Forge.DesignAutomation.Http;
 using Autodesk.Forge.DesignAutomation.Model;
 using Autodesk.Forge.Model;
 using Microsoft.AspNetCore.Hosting;
@@ -33,7 +34,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Activity = Autodesk.Forge.DesignAutomation.Model.Activity;
 using Alias = Autodesk.Forge.DesignAutomation.Model.Alias;
@@ -55,8 +58,8 @@ namespace forgeSample.Controllers
         private static string localSolutionsFolderRoot = "wwwroot/models/";
         private static string currentJobFolder;
         private static string unique_jobid;
-        private static string zipFileName = "ProOptimizerAutomation"; 
-        private static string engineName = "Autodesk.3dsMax+2023";
+        private static string zipFileName = "ProOptimizerAutomation";
+        private static string engineName = "Autodesk.3dsMax+2024";
         private static string appBundleName = zipFileName + "AppBundle";
         private static string activityName = zipFileName + "Activity";
         private static string maxcommandLine = "$(engine.path)\\3dsmaxbatch.exe -sceneFile \"$(args[inputFile].path)\" \"$(settings[script].path)\"";
@@ -87,13 +90,13 @@ namespace forgeSample.Controllers
         }
 
 
-         /// <summary>
+        /// <summary>
         /// PRESENTATION
         /// Define a new appbundle
         /// </summary>
         [HttpPost]
         [Route("api/forge/designautomation/initializeappbundle")]
-        public async Task<IActionResult> InitializeAppBundle([FromBody]JObject appBundleSpecs)
+        public async Task<IActionResult> InitializeAppBundle([FromBody] JObject appBundleSpecs)
         {
 
             // check if ZIP with bundle is here
@@ -104,7 +107,7 @@ namespace forgeSample.Controllers
             Page<string> appBundles = await _designAutomation.GetAppBundlesAsync();
 
             // check if app bundle is already defined
-            dynamic newAppVersion; 
+            dynamic newAppVersion;
             string qualifiedAppBundleId = string.Format("{0}.{1}+{2}", NickName, appBundleName, Alias);
             if (!appBundles.Data.Contains(qualifiedAppBundleId))
             {
@@ -125,16 +128,29 @@ namespace forgeSample.Controllers
                 Alias newAlias = await _designAutomation.CreateAppBundleAliasAsync(appBundleName, aliasSpec);
 
                 // upload the zip with .bundle
-                RestClient uploadClient = new RestClient(newAppVersion.UploadParameters.EndpointURL);
-                RestRequest request = new RestRequest(string.Empty, Method.POST);
-                request.AlwaysMultipartFormData = true;
-                foreach (KeyValuePair<string, string> x in newAppVersion.UploadParameters.FormData) request.AddParameter(x.Key, x.Value);
-                request.AddFile("file", packageZipPath);
-                request.AddHeader("Cache-Control", "no-cache");
-                await uploadClient.ExecuteAsync(request);
 
+                var client = new HttpClient();
+
+                var request = new HttpRequestMessage(HttpMethod.Post, newAppVersion.UploadParameters.EndpointURL);
+                var content = new MultipartFormDataContent();
+
+                foreach (KeyValuePair<string, string> x in newAppVersion.UploadParameters.FormData)
+                {
+                    content.Add(new StringContent(x.Value), x.Key);
+                }
+                content.Add(new ByteArrayContent(System.IO.File.ReadAllBytes(packageZipPath)), "file", packageZipPath);
+                request.Content = content;
+                try
+                {
+                    var response = await client.SendAsync(request);
+                    response.EnsureSuccessStatusCode();
+                    var responseBody = await response.Content.ReadAsStringAsync();
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
             }
-
             return Ok(new { AppBundle = qualifiedAppBundleId });
         }
 
@@ -146,11 +162,18 @@ namespace forgeSample.Controllers
         public async Task<List<string>> GetDefinedActivities()
         {
             // filter list of 
-            Page<string> activities = await _designAutomation.GetActivitiesAsync();
-            List<string> definedActivities = new List<string>();
-            foreach (string activity in activities.Data)
-                if (activity.StartsWith(NickName) && activity.IndexOf("$LATEST") == -1)
-                    definedActivities.Add(activity.Replace(NickName + ".", String.Empty));
+            var definedActivities = new List<string>();
+            try
+            {
+                Page<string> activities = await _designAutomation.GetActivitiesAsync();
+                foreach (string activity in activities.Data)
+                    if (activity.StartsWith(NickName) && activity.IndexOf("$LATEST") == -1)
+                        definedActivities.Add(activity.Replace(NickName + ".", String.Empty));
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
 
             return definedActivities;
         }
@@ -161,7 +184,7 @@ namespace forgeSample.Controllers
         /// </summary>
         [HttpPost]
         [Route("api/forge/designautomation/activities")]
-        public async Task<IActionResult> CreateActivity([FromBody]JObject activitySpecs)
+        public async Task<IActionResult> CreateActivity([FromBody] JObject activitySpecs)
         {
 
             // 
@@ -203,7 +226,7 @@ namespace forgeSample.Controllers
             return Ok(new { Activity = "Activity already defined" });
         }
 
- 
+
         /// <summary>
         /// Input for StartWorkitem
         /// </summary>
@@ -219,10 +242,10 @@ namespace forgeSample.Controllers
         /// </summary>
         [HttpPost]
         [Route("api/forge/designautomation/workitems")]
-        public async Task<IActionResult> StartWorkitem([FromForm]StartWorkitemInput input)
+        public async Task<IActionResult> StartWorkitem([FromForm] StartWorkitemInput input)
         {
             // basic input validation
-            JObject workItemData = JObject.Parse(input.data);            
+            JObject workItemData = JObject.Parse(input.data);
             string percentParam = workItemData["percent"].Value<string>();
             string keepNormalsParam = workItemData["KeepNormals"].Value<string>();
             string keepUVParam = workItemData["KeepUV"].Value<string>();
@@ -240,6 +263,7 @@ namespace forgeSample.Controllers
             {
                 fileSavePath = Path.Combine(_env.ContentRootPath, Path.GetFileName(input.inputFile.FileName));
                 using (var stream = new FileStream(fileSavePath, FileMode.Create)) await input.inputFile.CopyToAsync(stream);
+                input_fname = input.inputFile.FileName;
             }
             else
             {
@@ -247,7 +271,7 @@ namespace forgeSample.Controllers
                 input_fname = "default.max";
                 fileSavePath = Path.Combine(_env.WebRootPath, Path.GetFileName(input_fname));
             }
-            
+
             // OAuth token
             dynamic oauth = await OAuthController.GetInternalAsync();
 
@@ -262,7 +286,7 @@ namespace forgeSample.Controllers
                 await buckets.CreateBucketAsync(bucketPayload, "US");
             }
             catch { }; // in case bucket already exists
-          
+
             // 2. upload inputFile
             string inputFileNameOSS = string.Format("{0}_input_{1}", DateTime.Now.ToString("yyyyMMddhhmmss"), Path.GetFileName(input_fname)); //
             ObjectsApi objects = new ObjectsApi();
@@ -327,22 +351,22 @@ namespace forgeSample.Controllers
             {
                 WorkItemStatus workItemStatus = await _designAutomation.CreateWorkItemAsync(workItemSpec);
                 theresult = Ok(new { WorkItemId = workItemStatus.Id });
-            } 
+            }
             catch (Exception e)
             {
                 theresult = new BadRequestObjectResult(e);
+                Console.WriteLine(e.Message);
             }
-
             return theresult;
         }
 
-        /// <summary>
+        /// <summary>   
         /// PRESENTATION
         /// Callback from Design Automation Workitem (onProgress or onComplete)
         /// </summary>
         [HttpPost]
         [Route("/api/forge/callback/designautomation")]
-        public async Task<IActionResult> OnCallback(string id, string outputFileName, [FromBody]dynamic body)
+        public async Task<IActionResult> OnCallback(string id, string outputFileName, [FromBody] dynamic body)
         {
             try
             {
@@ -365,8 +389,26 @@ namespace forgeSample.Controllers
                 if (SVFpreview)
                 {
                     currentJobFolder = localSolutionsFolderRoot + unique_jobid + '/';
-                    var local = new WebClient();
-                    local.DownloadFile(signedUrl.Data.signedUrl, unique_jobid + localSolutionsFilenameBase);
+                    //var local = new WebClient();                    
+                    //local.DownloadFile(signedUrl.Data.signedUrl, unique_jobid + localSolutionsFilenameBase);
+                    var localFileName = unique_jobid + localSolutionsFilenameBase;
+                    var httpClient = new HttpClient();
+                    try
+                    {
+                        var inputStream = await httpClient.GetStreamAsync(signedUrl.Data.signedUrl);
+                        using (var fileStream = new FileStream(localFileName, FileMode.Create, FileAccess.Write, FileShare.None, 4096, true))
+                        {
+                            await inputStream.CopyToAsync(fileStream);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.Print(e.Message);
+                    }
+                    finally
+                    {
+                        httpClient.Dispose();
+                    }
                     System.IO.Compression.ZipFile.ExtractToDirectory(unique_jobid + localSolutionsFilenameBase, currentJobFolder);
                     numbers.AddFirst("1"); // make sure we also include the orginal SVF 100% (1.0) representation.
                     foreach (float vertexPercent in numbers)
@@ -376,7 +418,7 @@ namespace forgeSample.Controllers
                         stringVertexPercent = stringVertexPercent.Replace('.', '_');
                         string output = "outputFile-" + stringVertexPercent + ".zip";
 
-                        System.IO.Compression.ZipFile.ExtractToDirectory(currentJobFolder + output, currentJobFolder + stringVertexPercent); 
+                        System.IO.Compression.ZipFile.ExtractToDirectory(currentJobFolder + output, currentJobFolder + stringVertexPercent);
                     }
                 }
 
@@ -410,7 +452,7 @@ namespace forgeSample.Controllers
         [Route("api/forge/designautomation/clearaccount")]
         public async Task<IActionResult> ClearAccount()
         {
-            // clear account
+            // clear account            
             await _designAutomation.DeleteForgeAppAsync("me");
             return Ok();
         }

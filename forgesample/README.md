@@ -1,11 +1,11 @@
 # learn.forge.designautomation - ASP.NET Core
 
 ![Platforms](https://img.shields.io/badge/platform-Windows|MacOS-lightgray.svg)
-![.NET](https://img.shields.io/badge/.NET%20Core-2.1-blue.svg)
+![.NET](https://img.shields.io/badge/.NET%207-blue.svg)
 [![License](http://img.shields.io/:license-MIT-blue.svg)](http://opensource.org/licenses/MIT)
 
-[![oAuth2](https://img.shields.io/badge/oAuth2-v1-green.svg)](http://developer.autodesk.com/)
-[![Data-Management](https://img.shields.io/badge/Data%20Management-v1-green.svg)](http://developer.autodesk.com/)
+[![oAuth2](https://img.shields.io/badge/oAuth2-v2-green.svg)](http://developer.autodesk.com/)
+[![Data-Management](https://img.shields.io/badge/Data%20Management-v2-green.svg)](http://developer.autodesk.com/)
 [![Design-Automation](https://img.shields.io/badge/Design%20Automation-v3-green.svg)](http://developer.autodesk.com/)
 
 ![Basic](https://img.shields.io/badge/Level-Basic-blue.svg)
@@ -37,11 +37,18 @@ Clone this project or download it. It's recommended to install [GitHub desktop](
     
 **ngrok**
 
-When a `Workitem` completes, **Design Automation** can notify our application. As the app is running locally (i.e. `localhost`), it's not reacheable from the internet. `ngrok` tool creates a temporary address that channels notifications to our `localhost` address.
+When a `Workitem` completes, **Design Automation** can notify our application. As the app is running locally (i.e. `localhost`), it's not reachable from the internet. `ngrok` tool creates a temporary address that channels notifications to our `localhost` address.
 
 After [download ngrok](https://ngrok.com/), run `ngrok http 3000 -host-header="localhost:3000"`, then copy the `http` address into the `FORGE_WEBHOOK_URL` environment variable (see next). For this sample, do not use the `https` address.
 
 ![](../media/webapp/ngrok_setup.png)
+Design Automation in this sample uses environment variables to set credentials.  
+```C#
+builder.AddForgeAlternativeEnvironmentVariables();
+```
+You can set them as system wide environment variables or setting them in the IDE.
+
+Note, the id and secret for the Design Automation must be FORGE_CLIENT_ID and FORGE_CLIENT_SECRET.
 
 **Visual Studio** (Windows):
 
@@ -49,7 +56,7 @@ Right-click on the project, then go to **Debug**. Adjust the settings as shown b
 
 ![](../media/webapp/visual_studio_settings.png)
 
-**Visual Sutdio Code** (Windows, MacOS):
+**Visual Studio Code** (Windows, MacOS):
 
 Open the `webapp` folder (only), at the bottom-right, select **Yes** and **Restore**. This restores the packages (e.g. Autodesk.Forge) and creates the launch.json file. See *Tips & Tricks* for .NET Core on MacOS.
 
